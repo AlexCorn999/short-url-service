@@ -8,8 +8,10 @@ import (
 )
 
 func main() {
+	store := handlers.NewStorage()
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", handlers.StringAcceptAndBack)
+	mux.HandleFunc("/", store.StringAcceptAndBack)
 
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
