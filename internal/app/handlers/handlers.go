@@ -65,14 +65,14 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		body := r.URL.String()
+		bodyGet := r.URL.String()
 
-		if _, ok := s.data[body[1:]]; !ok {
+		if _, ok := s.data[bodyGet[1:]]; !ok {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		link := s.data[body[1:]]
+		link := s.data[bodyGet[1:]]
 
 		w.Header().Set("Location", link)
 		w.WriteHeader(http.StatusTemporaryRedirect)
