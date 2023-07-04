@@ -7,11 +7,9 @@ import (
 	"github.com/AlexCorn999/short-url-service/internal/app/handlers"
 )
 
-const host = ":8080"
-
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handlers.StringAcceptAndBack)
 
-	log.Fatal(http.ListenAndServe(host, mux))
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }

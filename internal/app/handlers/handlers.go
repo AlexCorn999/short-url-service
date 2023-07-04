@@ -35,9 +35,9 @@ func StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		body := r.URL.String()
+		//body := r.URL.String()
 
-		link := fmt.Sprintf("http:%s%s", r.Host, body)
+		link := fmt.Sprintf("http:%s", r.Host)
 		w.Header().Set("Location", link)
 		w.WriteHeader(http.StatusTemporaryRedirect)
 		return
