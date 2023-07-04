@@ -43,11 +43,6 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 			body += k
 		}
 
-		if body == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
 		// запись в хранилище
 		idForData := strconv.Itoa(IDStore)
 		s.data[idForData] = body
@@ -65,14 +60,14 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		bodyGet := r.URL.String()
+		id := r.URL.String()
 
-		if _, ok := s.data[bodyGet[1:]]; !ok {
+		if _, ok := s.data[id[1:]]; !ok {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		link := s.data[bodyGet[1:]]
+		link := s.data[id[1:]]
 
 		w.Header().Set("Location", link)
 		w.WriteHeader(http.StatusTemporaryRedirect)
