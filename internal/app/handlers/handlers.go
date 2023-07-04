@@ -25,6 +25,13 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodPost {
+
+		bodyPost := r.URL.String()
+		if bodyPost != "/" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		// парсинг тела запроса POST
 		if err := r.ParseForm(); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
