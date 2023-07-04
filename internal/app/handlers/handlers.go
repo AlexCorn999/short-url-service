@@ -48,7 +48,7 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 		s.data[idForData] = body
 		IDStore++
 
-		link := fmt.Sprintf("http:%s/%s", r.Host, idForData)
+		link := fmt.Sprintf("http://%s/%s", r.Host, idForData)
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(link))
 		return
