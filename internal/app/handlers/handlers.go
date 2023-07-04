@@ -43,11 +43,6 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 			body += k
 		}
 
-		if body == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
 		// запись в хранилище
 		idForData := strconv.Itoa(IDStore)
 		s.data[idForData] = body
