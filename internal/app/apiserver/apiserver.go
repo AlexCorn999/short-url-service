@@ -27,8 +27,9 @@ func (s *APIServer) Start() error {
 
 func (s *APIServer) configureRouter() {
 	s.router = chi.NewRouter()
+
 	s.router.Post("/", s.StringAccept)
-	s.router.Get("/", s.StringBack)
+	s.router.Get("/{id}", s.StringBack)
 	s.router.NotFound(notFoundError)
 }
 
