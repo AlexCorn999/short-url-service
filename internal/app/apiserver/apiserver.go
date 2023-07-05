@@ -10,19 +10,21 @@ import (
 	"github.com/go-chi/chi"
 )
 
-const addr = ":8080"
-
 // APIServer ...
 type APIServer struct {
 	storage store.Storage
+	config  *Config
 	router  *chi.Mux
 }
 
 // Start ...
 func (s *APIServer) Start() error {
+	s.config = NewConfig()
+	s.config.parseFlags()
+
 	s.configureRouter()
 	s.storage = *store.NewStorage()
-	return http.ListenAndServe(addr, s.router)
+	return http.ListenAndServe(s.config.bindAddr, s.router)
 }
 
 func (s *APIServer) configureRouter() {
@@ -50,7 +52,7 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	s.storage.Data[idForData] = string(body)
 	store.IDStorage++
 
-	link := fmt.Sprintf("http://%s/%s", r.Host, idForData)
+	link := fmt.Sprintf("http://%s/%s", s.config.shortURLAddr, idForData)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(link))
 }

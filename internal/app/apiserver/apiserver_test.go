@@ -16,6 +16,8 @@ func TestStringAccept(t *testing.T) {
 	server := APIServer{}
 	server.configureRouter()
 	server.storage = *store.NewStorage()
+	server.config = NewConfig()
+	server.config.parseFlags()
 
 	type want struct {
 		statusCode int
@@ -32,7 +34,7 @@ func TestStringAccept(t *testing.T) {
 			body:    "Yandex.ru",
 			want: want{
 				statusCode: 201,
-				response:   "http://example.com/1",
+				response:   "http://localhost:8080/1",
 			},
 		},
 		{
@@ -40,7 +42,7 @@ func TestStringAccept(t *testing.T) {
 			body:    "http://Skillbox.ru",
 			want: want{
 				statusCode: 201,
-				response:   "http://example.com/2",
+				response:   "http://localhost:8080/2",
 			},
 		},
 	}
