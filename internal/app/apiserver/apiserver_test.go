@@ -114,7 +114,7 @@ func TestStringBack(t *testing.T) {
 		server.StringAcceptAndBack(w, req)
 
 		result := w.Result()
-
+		defer result.Body.Close()
 		assert.Equal(t, tc.want.statusCode, result.StatusCode)
 		assert.Equal(t, tc.want.contentType, result.Header.Get("Location"))
 	}
