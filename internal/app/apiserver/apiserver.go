@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
+	"github.com/go-chi/chi"
 )
 
 const addr = ":8080"
@@ -14,7 +15,7 @@ const addr = ":8080"
 // APIServer ...
 type APIServer struct {
 	storage store.Storage
-	router  *http.ServeMux
+	router  *chi.Mux
 }
 
 // Start ...
@@ -25,61 +26,45 @@ func (s *APIServer) Start() error {
 }
 
 func (s *APIServer) configureRouter() {
-	s.router = http.NewServeMux()
-	s.router.HandleFunc("/", s.StringAcceptAndBack)
+	s.router = chi.NewRouter()
+	s.router.Post("/", s.StringAccept)
+	s.router.Get("/", s.StringBack)
+	s.router.NotFound(notFoundError)
+}
+
+func notFoundError(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusBadRequest)
 }
 
 // StringAccept принимает ссылку и возвращает закодированную ссылку
-func (s *APIServer) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost && r.Method != http.MethodGet {
+func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	// обработка POST метода
-	if r.Method == http.MethodPost {
-		bodyPost := r.URL.String()
 
-		if bodyPost != "/" {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	// запись в хранилище
+	idForData := strconv.Itoa(store.IDStorage)
+	s.storage.Data[idForData] = string(body)
+	store.IDStorage++
 
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	link := fmt.Sprintf("http://%s/%s", r.Host, idForData)
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(link))
+}
 
-		// запись в хранилище
-		idForData := strconv.Itoa(store.IDStorage)
-		s.storage.Data[idForData] = string(body)
-		//	s.data[idForData] = string(body)
-		store.IDStorage++
+// StringBack принимает id и возвращает ссылку
+func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.String()
 
-		link := fmt.Sprintf("http://%s/%s", r.Host, idForData)
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(link))
+	if _, ok := s.storage.Data[id[1:]]; !ok {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// обработка GET метода
-	if r.Method == http.MethodGet {
-		if r.Method != http.MethodGet {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+	link := s.storage.Data[id[1:]]
 
-		id := r.URL.String()
-
-		if _, ok := s.storage.Data[id[1:]]; !ok {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		link := s.storage.Data[id[1:]]
-
-		w.Header().Set("Location", link)
-		w.WriteHeader(http.StatusTemporaryRedirect)
-		return
-	}
+	w.Header().Set("Location", link)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }

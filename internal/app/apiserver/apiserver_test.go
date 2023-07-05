@@ -36,14 +36,6 @@ func TestStringAccept(t *testing.T) {
 			},
 		},
 		{
-			request: "/22",
-			body:    "Yandex.ru",
-			want: want{
-				statusCode: 400,
-				response:   "",
-			},
-		},
-		{
 			request: "/",
 			body:    "http://Skillbox.ru",
 			want: want{
@@ -56,7 +48,7 @@ func TestStringAccept(t *testing.T) {
 	for _, tc := range testTable {
 		req := httptest.NewRequest(http.MethodPost, tc.request, strings.NewReader(tc.body))
 		w := httptest.NewRecorder()
-		server.StringAcceptAndBack(w, req)
+		server.StringAccept(w, req)
 
 		result := w.Result()
 		defer result.Body.Close()
@@ -111,7 +103,7 @@ func TestStringBack(t *testing.T) {
 	for _, tc := range testTable {
 		req := httptest.NewRequest(http.MethodGet, tc.request, nil)
 		w := httptest.NewRecorder()
-		server.StringAcceptAndBack(w, req)
+		server.StringBack(w, req)
 
 		result := w.Result()
 		defer result.Body.Close()
