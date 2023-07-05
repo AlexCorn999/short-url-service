@@ -1,19 +1,14 @@
 package main
 
 import (
-	"net/http"
+	"log"
 
-	"github.com/AlexCorn999/short-url-service/internal/app/handlers"
+	"github.com/AlexCorn999/short-url-service/internal/app/apiserver"
 )
 
 func main() {
-	store := handlers.NewStorage()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", store.StringAcceptAndBack)
-
-	err := http.ListenAndServe(`:8080`, mux)
-	if err != nil {
-		panic(err)
+	server := apiserver.APIServer{}../store/
+	if err := server.Start(); err != nil {
+		log.Fatal(err)
 	}
 }
