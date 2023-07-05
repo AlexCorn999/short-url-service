@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 )
@@ -24,6 +25,7 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	// обработка POST метода
 	if r.Method == http.MethodPost {
 
 		bodyPost := r.URL.String()
@@ -32,20 +34,27 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// парсинг тела запроса POST
-		if err := r.ParseForm(); err != nil {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		body := ""
-		for k := range r.Form {
-			body += k
-		}
+		/*
+			// парсинг тела запроса POST
+			if err := r.ParseForm(); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			body := ""
+			for k := range r.Form {
+				body += k
+			}*/
 
 		// запись в хранилище
 		idForData := strconv.Itoa(IDStore)
-		s.data[idForData] = body
+		s.data[idForData] = string(body)
 		IDStore++
 
 		link := fmt.Sprintf("http://%s/%s", r.Host, idForData)
@@ -54,6 +63,7 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// обработка GET метода
 	if r.Method == http.MethodGet {
 		if r.Method != http.MethodGet {
 			w.WriteHeader(http.StatusBadRequest)
@@ -74,18 +84,3 @@ func (s *Storage) StringAcceptAndBack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
-/*
-// StringBack возвращает ссылку по id
-func StringBack(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	body := r.URL.String()
-
-	link := fmt.Sprintf("http:%s%s", r.Host, body)
-	w.Header().Set("Location", link)
-	w.WriteHeader(http.StatusTemporaryRedirect)
-}*/
