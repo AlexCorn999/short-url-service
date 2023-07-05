@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	server := apiserver.APIServer{}../store/
+	server := apiserver.APIServer{}
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
 	}
