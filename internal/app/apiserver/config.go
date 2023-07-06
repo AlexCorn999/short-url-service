@@ -3,6 +3,7 @@ package apiserver
 import (
 	"errors"
 	"flag"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -67,8 +68,7 @@ func (a *NetAddress) Set(s string) error {
 	return nil
 }
 
-// parseFlags обрабатывает аргументы командной строки
-// и сохраняет их значения в соответствующих переменных
+// parseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
 func (c *Config) parseFlags() {
 
 	addr := new(NetAddress)
@@ -90,5 +90,15 @@ func (c *Config) parseFlags() {
 	// проверка значения urlAddr, чтобы записать в переменную shortURLAddr
 	if urlAddr.String() != "::0" {
 		c.ShortURLAddr = urlAddr.String()
+	}
+
+	// Установка данных адреса запуска HTTP-сервера через переменные окружения
+	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
+		c.bindAddr = envRunAddr
+	}
+
+	// Установка базового адреса результирующего сокращённого URL через переменные окружения
+	if envShortUrl := os.Getenv("BASE_URL"); envShortUrl != "" {
+		c.ShortURLAddr = envShortUrl
 	}
 }
