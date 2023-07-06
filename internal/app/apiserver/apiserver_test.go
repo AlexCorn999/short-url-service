@@ -34,7 +34,7 @@ func TestStringAccept(t *testing.T) {
 			body:    "Yandex.ru",
 			want: want{
 				statusCode: 201,
-				response:   "http://localhost:8080/1",
+				response:   "http://example.com/1",
 			},
 		},
 		{
@@ -42,7 +42,7 @@ func TestStringAccept(t *testing.T) {
 			body:    "http://Skillbox.ru",
 			want: want{
 				statusCode: 201,
-				response:   "http://localhost:8080/2",
+				response:   "http://example.com/2",
 			},
 		},
 	}
