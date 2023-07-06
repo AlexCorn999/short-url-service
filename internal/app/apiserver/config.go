@@ -8,13 +8,15 @@ import (
 )
 
 type Config struct {
-	bindAddr     string
-	shortURLAddr string
+	bindAddr string
+	//shortURLAddr string
 }
 
 // NewConfig ...
 func NewConfig() *Config {
-	return &Config{}
+	return &Config{
+		bindAddr: ":8080",
+	}
 }
 
 type NetAddress struct {
@@ -43,15 +45,16 @@ func (a *NetAddress) Set(s string) error {
 // parseFlags обрабатывает аргументы командной строки
 // и сохраняет их значения в соответствующих переменных
 func (c *Config) parseFlags() {
-	// адрес по умолчанию
-	c.bindAddr = "localhost:8080"
+
 	addr := new(NetAddress)
 	_ = flag.Value(addr)
 
 	flag.Var(addr, "a", "Net address host:port")
 	//flag.StringVar(&c.shortURLAddr, "b", "localhost:8080", "address and port for short URL")
-	// парсим переданные серверу аргументы в зарегистрированные переменные
 	flag.Parse()
 
-	c.bindAddr = addr.String()
+	// проверка значения addr, чтобы записать в переменную bindAddr
+	if addr.String() != ":0" {
+		c.bindAddr = addr.String()
+	}
 }
