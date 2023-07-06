@@ -24,8 +24,33 @@ type NetAddress struct {
 	Port int
 }
 
+type URLAddress struct {
+	http string
+	Host string
+	Port int
+}
+
+func (u URLAddress) String() string {
+	return u.http + ":" + u.Host + ":" + strconv.Itoa(u.Port)
+}
+
 func (a NetAddress) String() string {
 	return a.Host + ":" + strconv.Itoa(a.Port)
+}
+
+func (u *URLAddress) Set(s string) error {
+	hp := strings.Split(s, ":")
+	if len(hp) != 3 {
+		return errors.New("need address in a form host:port")
+	}
+	port, err := strconv.Atoi(hp[2])
+	if err != nil {
+		return err
+	}
+	u.http = hp[0]
+	u.Host = hp[1]
+	u.Port = port
+	return nil
 }
 
 func (a *NetAddress) Set(s string) error {
@@ -49,7 +74,7 @@ func (c *Config) parseFlags() {
 	addr := new(NetAddress)
 	_ = flag.Value(addr)
 
-	urlAddr := new(NetAddress)
+	urlAddr := new(URLAddress)
 	_ = flag.Value(urlAddr)
 
 	flag.Var(addr, "a", "Net address host:port")
@@ -63,7 +88,7 @@ func (c *Config) parseFlags() {
 	}
 
 	// проверка значения urlAddr, чтобы записать в переменную shortURLAddr
-	if urlAddr.String() != ":0" {
+	if urlAddr.String() != "::0" {
 		c.ShortURLAddr = urlAddr.String()
 	}
 }

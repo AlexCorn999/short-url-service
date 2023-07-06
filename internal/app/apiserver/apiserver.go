@@ -53,11 +53,15 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	store.IDStorage++
 
 	hostForLink := r.Host
+	var link string
+
 	if s.config.ShortURLAddr != "" {
 		hostForLink = s.config.ShortURLAddr
+		link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+	} else {
+		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
 
-	link := fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(link))
 }
