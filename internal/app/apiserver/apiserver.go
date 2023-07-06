@@ -52,7 +52,7 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	s.storage.Data[idForData] = string(body)
 	store.IDStorage++
 
-	link := fmt.Sprintf("http://%s/%s", s.config.shortURLAddr, idForData)
+	link := fmt.Sprintf("http://%s/%s", r.Host, idForData)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(link))
 }

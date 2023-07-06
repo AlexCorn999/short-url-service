@@ -17,7 +17,7 @@ func TestStringAccept(t *testing.T) {
 	server.configureRouter()
 	server.storage = *store.NewStorage()
 	server.config = NewConfig()
-	server.config.parseFlags()
+	//server.config.parseFlags()
 
 	type want struct {
 		statusCode int
