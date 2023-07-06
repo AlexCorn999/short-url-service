@@ -8,8 +8,8 @@ import (
 )
 
 type Config struct {
-	bindAddr string
-	//shortURLAddr string
+	bindAddr     string
+	ShortURLAddr string
 }
 
 // NewConfig ...
@@ -49,12 +49,21 @@ func (c *Config) parseFlags() {
 	addr := new(NetAddress)
 	_ = flag.Value(addr)
 
+	urlAddr := new(NetAddress)
+	_ = flag.Value(urlAddr)
+
 	flag.Var(addr, "a", "Net address host:port")
-	//flag.StringVar(&c.shortURLAddr, "b", "localhost:8080", "address and port for short URL")
+	flag.Var(urlAddr, "b", "address and port for short URL")
+
 	flag.Parse()
 
 	// проверка значения addr, чтобы записать в переменную bindAddr
 	if addr.String() != ":0" {
 		c.bindAddr = addr.String()
+	}
+
+	// проверка значения urlAddr, чтобы записать в переменную shortURLAddr
+	if urlAddr.String() != ":0" {
+		c.ShortURLAddr = urlAddr.String()
 	}
 }
