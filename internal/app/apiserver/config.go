@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Config ...
 type Config struct {
 	bindAddr     string
 	ShortURLAddr string
@@ -20,23 +21,22 @@ func NewConfig() *Config {
 	}
 }
 
+// NetAddress структура для проверки флага a
 type NetAddress struct {
 	Host string
 	Port int
 }
 
+// URLAddress cтруктура для проверки флага b
 type URLAddress struct {
 	http string
 	Host string
 	Port int
 }
 
+// Имплементация интерфейса для флага b
 func (u URLAddress) String() string {
 	return u.http + ":" + u.Host + ":" + strconv.Itoa(u.Port)
-}
-
-func (a NetAddress) String() string {
-	return a.Host + ":" + strconv.Itoa(a.Port)
 }
 
 func (u *URLAddress) Set(s string) error {
@@ -52,6 +52,11 @@ func (u *URLAddress) Set(s string) error {
 	u.Host = hp[1]
 	u.Port = port
 	return nil
+}
+
+// Имплементация интерфейса для флага a
+func (a NetAddress) String() string {
+	return a.Host + ":" + strconv.Itoa(a.Port)
 }
 
 func (a *NetAddress) Set(s string) error {
@@ -98,7 +103,7 @@ func (c *Config) parseFlags() {
 	}
 
 	// Установка базового адреса результирующего сокращённого URL через переменные окружения
-	if envShortUrl := os.Getenv("BASE_URL"); envShortUrl != "" {
-		c.ShortURLAddr = envShortUrl
+	if envShortURL := os.Getenv("BASE_URL"); envShortURL != "" {
+		c.ShortURLAddr = envShortURL
 	}
 }

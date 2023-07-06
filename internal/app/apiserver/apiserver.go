@@ -29,12 +29,12 @@ func (s *APIServer) Start() error {
 
 func (s *APIServer) configureRouter() {
 	s.router = chi.NewRouter()
-
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
 	s.router.NotFound(notFoundError)
 }
 
+// notFoundError задает ошибку 400 по умолчанию на неизвестные запросы
 func notFoundError(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 }
@@ -55,6 +55,7 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	hostForLink := r.Host
 	var link string
 
+	// проверка для работы флага b
 	if s.config.ShortURLAddr != "" {
 		hostForLink = s.config.ShortURLAddr
 		link = fmt.Sprintf("%s/%s", hostForLink, idForData)
