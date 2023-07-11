@@ -47,6 +47,22 @@ func TestStringAccept(t *testing.T) {
 		},
 		{
 			request: "/",
+			body:    "                  ",
+			want: want{
+				statusCode: 400,
+				response:   "",
+			},
+		},
+		{
+			request: "/",
+			body:    " ",
+			want: want{
+				statusCode: 400,
+				response:   "",
+			},
+		},
+		{
+			request: "/",
 			body:    "",
 			want: want{
 				statusCode: 400,

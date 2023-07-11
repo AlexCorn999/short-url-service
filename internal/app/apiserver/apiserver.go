@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/go-chi/chi"
@@ -48,9 +48,8 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// проверка получения ссылки
-	_, err = url.Parse(string(body))
-	if err != nil {
+	// пероверка на пустую ссылку
+	if len(strings.TrimSpace(string(body))) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
