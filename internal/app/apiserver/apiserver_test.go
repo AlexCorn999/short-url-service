@@ -45,6 +45,14 @@ func TestStringAccept(t *testing.T) {
 				response:   "http://example.com/2",
 			},
 		},
+		{
+			request: "/",
+			body:    "",
+			want: want{
+				statusCode: 400,
+				response:   "",
+			},
+		},
 	}
 
 	for _, tc := range testTable {
@@ -96,7 +104,7 @@ func TestStringBack(t *testing.T) {
 		{
 			request: "/3",
 			want: want{
-				statusCode:  400,
+				statusCode:  404,
 				contentType: "",
 			},
 		},
