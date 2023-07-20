@@ -12,12 +12,14 @@ import (
 type Config struct {
 	bindAddr     string
 	ShortURLAddr string
+	LogLevel     string
 }
 
 // NewConfig ...
 func NewConfig() *Config {
 	return &Config{
 		bindAddr: ":8080",
+		LogLevel: "debug",
 	}
 }
 
@@ -74,7 +76,7 @@ func (a *NetAddress) Set(s string) error {
 }
 
 // parseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
-func (c *Config) parseFlags() {
+func (c *Config) ParseFlags() {
 
 	addr := new(NetAddress)
 	_ = flag.Value(addr)

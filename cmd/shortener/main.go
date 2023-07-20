@@ -7,7 +7,10 @@ import (
 )
 
 func main() {
-	server := apiserver.APIServer{}
+	config := apiserver.NewConfig()
+	config.ParseFlags()
+	server := apiserver.New(config)
+
 	if err := server.Start(); err != nil {
 		log.Fatal(err)
 	}

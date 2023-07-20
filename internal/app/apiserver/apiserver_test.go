@@ -7,17 +7,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestStringAccept(t *testing.T) {
-	server := APIServer{}
+	config := NewConfig()
+	config.ParseFlags()
+	server := New(config)
 	server.configureRouter()
-	server.storage = *store.NewStorage()
-	server.config = NewConfig()
-	server.config.parseFlags()
+	server.configureStore()
 
 	type want struct {
 		statusCode int
@@ -87,9 +86,10 @@ func TestStringAccept(t *testing.T) {
 }
 
 func TestStringBack(t *testing.T) {
-	server := APIServer{}
+	config := NewConfig()
+	server := New(config)
 	server.configureRouter()
-	server.storage = *store.NewStorage()
+	server.configureStore()
 
 	server.storage.Data["1"] = "Yandex.ru"
 	server.storage.Data["2"] = "http://Skillbox.ru"

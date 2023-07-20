@@ -9,22 +9,42 @@ import (
 
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/go-chi/chi"
+
+	"github.com/sirupsen/logrus"
 )
 
 // APIServer ...
 type APIServer struct {
 	storage store.Storage
+	logger  *logrus.Logger
 	config  *Config
 	router  *chi.Mux
 }
 
-// Start ...
-func (s *APIServer) Start() error {
-	s.config = NewConfig()
-	s.config.parseFlags()
+// New APIServer
+func New(config *Config) *APIServer {
+	return &APIServer{
+		config:  config,
+		logger:  logrus.New(),
+		router:  chi.NewRouter(),
+		storage: *store.NewStorage(),
+	}
+}
 
+// Start APIServer
+func (s *APIServer) Start() error {
 	s.configureRouter()
-	s.storage = *store.NewStorage()
+
+	if err := s.configureStore(); err != nil {
+		return err
+	}
+
+	if err := s.configureLogger(); err != nil {
+		return err
+	}
+
+	s.logger.Info("starting api server")
+
 	return http.ListenAndServe(s.config.bindAddr, s.router)
 }
 
@@ -33,6 +53,25 @@ func (s *APIServer) configureRouter() {
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
 	s.router.NotFound(badRequest)
+}
+
+func (s *APIServer) configureStore() error {
+	st := store.NewStorage()
+
+	s.storage = *st
+
+	return nil
+}
+
+func (s *APIServer) configureLogger() error {
+	level, err := logrus.ParseLevel(s.config.LogLevel)
+
+	if err != nil {
+		return err
+	}
+
+	s.logger.SetLevel(level)
+	return nil
 }
 
 // badRequest задает ошибку 400 по умолчанию на неизвестные запросы
