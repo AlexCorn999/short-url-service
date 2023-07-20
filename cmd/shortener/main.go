@@ -1,9 +1,8 @@
 package main
 
 import (
-	"log"
-
 	"github.com/AlexCorn999/short-url-service/internal/app/apiserver"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {

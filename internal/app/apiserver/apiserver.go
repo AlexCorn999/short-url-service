@@ -6,17 +6,43 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/go-chi/chi"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
+
+type (
+	// Структура для хранения сведений об ответе для middleware
+	responseData struct {
+		status int
+		size   int
+	}
+
+	// Реализация http.ResponseWriter
+	loggingResponseWriter struct {
+		http.ResponseWriter
+		responseData *responseData
+	}
+)
+
+func (r *loggingResponseWriter) Write(b []byte) (int, error) {
+	size, err := r.ResponseWriter.Write(b)
+	r.responseData.size += size
+	return size, err
+}
+
+func (r *loggingResponseWriter) WriteHeader(statusCode int) {
+	r.ResponseWriter.WriteHeader(statusCode)
+	r.responseData.status = statusCode
+}
 
 // APIServer ...
 type APIServer struct {
 	storage store.Storage
-	logger  *logrus.Logger
+	logger  *log.Logger
 	config  *Config
 	router  *chi.Mux
 }
@@ -25,7 +51,7 @@ type APIServer struct {
 func New(config *Config) *APIServer {
 	return &APIServer{
 		config:  config,
-		logger:  logrus.New(),
+		logger:  log.New(),
 		router:  chi.NewRouter(),
 		storage: *store.NewStorage(),
 	}
@@ -50,6 +76,8 @@ func (s *APIServer) Start() error {
 
 func (s *APIServer) configureRouter() {
 	s.router = chi.NewRouter()
+
+	s.router.Use(WithLogging)
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
 	s.router.NotFound(badRequest)
@@ -64,7 +92,7 @@ func (s *APIServer) configureStore() error {
 }
 
 func (s *APIServer) configureLogger() error {
-	level, err := logrus.ParseLevel(s.config.LogLevel)
+	level, err := log.ParseLevel(s.config.LogLevel)
 
 	if err != nil {
 		return err
@@ -72,6 +100,37 @@ func (s *APIServer) configureLogger() error {
 
 	s.logger.SetLevel(level)
 	return nil
+}
+
+// WithLogging выполняет функцию middleware с логированием.
+// Содержит сведения о URI, методе запроса и времени, затраченного на его выполнение.
+// Сведения об ответах должны содержать код статуса и размер содержимого ответа.
+func WithLogging(next http.Handler) http.Handler {
+	logFn := func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		responseData := &responseData{
+			status: 0,
+			size:   0,
+		}
+		lw := loggingResponseWriter{
+			ResponseWriter: w,
+			responseData:   responseData,
+		}
+
+		next.ServeHTTP(&lw, r)
+
+		duration := time.Since(start)
+
+		log.WithFields(log.Fields{
+			"uri":      r.RequestURI,
+			"method":   r.Method,
+			"duration": duration,
+			"status":   responseData.status,
+			"size":     responseData.size,
+		}).Info("request details: ")
+	}
+	return http.HandlerFunc(logFn)
 }
 
 // badRequest задает ошибку 400 по умолчанию на неизвестные запросы
