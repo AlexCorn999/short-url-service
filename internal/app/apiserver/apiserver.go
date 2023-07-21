@@ -18,7 +18,7 @@ import (
 
 // URL для JSON объекта
 type shortenURL struct {
-	Url string `json:"url"`
+	URL string `json:"url"`
 }
 
 // URL для JSON объекта
@@ -192,14 +192,14 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// пероверка на пустую ссылку
-	if len(strings.TrimSpace(string(url.Url))) == 0 {
+	if len(strings.TrimSpace(string(url.URL))) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// запись в хранилище
 	idForData := strconv.Itoa(store.IDStorage)
-	s.storage.Data[idForData] = url.Url
+	s.storage.Data[idForData] = url.URL
 	store.IDStorage++
 
 	hostForLink := r.Host
