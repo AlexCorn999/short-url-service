@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -8,35 +9,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AlexCorn999/short-url-service/internal/app/logger"
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/go-chi/chi"
 
 	log "github.com/sirupsen/logrus"
 )
 
-type (
-	// Структура для хранения сведений об ответе для middleware
-	responseData struct {
-		status int
-		size   int
-	}
-
-	// Реализация http.ResponseWriter
-	loggingResponseWriter struct {
-		http.ResponseWriter
-		responseData *responseData
-	}
-)
-
-func (r *loggingResponseWriter) Write(b []byte) (int, error) {
-	size, err := r.ResponseWriter.Write(b)
-	r.responseData.size += size
-	return size, err
+// URL для JSON объекта
+type shortenURL struct {
+	Url string `json:"url"`
 }
 
-func (r *loggingResponseWriter) WriteHeader(statusCode int) {
-	r.ResponseWriter.WriteHeader(statusCode)
-	r.responseData.status = statusCode
+// URL для JSON объекта
+type URLResult struct {
+	ResultURL string `json:"result"`
 }
 
 // APIServer ...
@@ -78,6 +65,7 @@ func (s *APIServer) configureRouter() {
 	s.router = chi.NewRouter()
 
 	s.router.Use(WithLogging)
+	s.router.Post("/api/shorten", s.ShortenURL)
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
 	s.router.NotFound(badRequest)
@@ -109,13 +97,13 @@ func WithLogging(next http.Handler) http.Handler {
 	logFn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		responseData := &responseData{
-			status: 0,
-			size:   0,
+		responseData := &logger.ResponseData{
+			Status: 0,
+			Size:   0,
 		}
-		lw := loggingResponseWriter{
+		lw := logger.LoggingResponseWriter{
 			ResponseWriter: w,
-			responseData:   responseData,
+			ResponseData:   responseData,
 		}
 
 		next.ServeHTTP(&lw, r)
@@ -126,8 +114,8 @@ func WithLogging(next http.Handler) http.Handler {
 			"uri":      r.RequestURI,
 			"method":   r.Method,
 			"duration": duration,
-			"status":   responseData.status,
-			"size":     responseData.size,
+			"status":   responseData.Status,
+			"size":     responseData.Size,
 		}).Info("request details: ")
 	}
 	return http.HandlerFunc(logFn)
@@ -185,4 +173,56 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Location", link)
 	w.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+// ShortenURL принимает JSON-объект {"url":"<some_url>"}.
+// Возвращает в ответ объект {"result":"<short_url>"}.
+func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var url shortenURL
+
+	if err := json.Unmarshal(body, &url); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// пероверка на пустую ссылку
+	if len(strings.TrimSpace(string(url.Url))) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// запись в хранилище
+	idForData := strconv.Itoa(store.IDStorage)
+	s.storage.Data[idForData] = url.Url
+	store.IDStorage++
+
+	hostForLink := r.Host
+	var link string
+
+	// проверка для работы флага b
+	if s.config.ShortURLAddr != "" {
+		hostForLink = s.config.ShortURLAddr
+		link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+	} else {
+		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+	}
+
+	// запись ссылки в структуру ответа
+	var result URLResult
+	result.ResultURL = link
+
+	objectJSON, err := json.Marshal(result)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(objectJSON)
 }
