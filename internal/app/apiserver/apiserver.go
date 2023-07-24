@@ -65,7 +65,6 @@ func (s *APIServer) configureRouter() {
 	s.router = chi.NewRouter()
 
 	s.router.Use(logger.WithLogging)
-	s.router.Use(gzip.AcceptGzipHandle)
 	s.router.Use(gzip.GzipHandle)
 	s.router.Post("/api/shorten", s.ShortenURL)
 	s.router.Post("/", s.StringAccept)
