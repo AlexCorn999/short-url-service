@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/AlexCorn999/short-url-service/internal/app/gzip"
 	"github.com/AlexCorn999/short-url-service/internal/app/logger"
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/go-chi/chi"
@@ -64,7 +64,9 @@ func (s *APIServer) Start() error {
 func (s *APIServer) configureRouter() {
 	s.router = chi.NewRouter()
 
-	s.router.Use(WithLogging)
+	s.router.Use(logger.WithLogging)
+	s.router.Use(gzip.AcceptGzipHandle)
+	s.router.Use(gzip.GzipHandle)
 	s.router.Post("/api/shorten", s.ShortenURL)
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
@@ -88,37 +90,6 @@ func (s *APIServer) configureLogger() error {
 
 	s.logger.SetLevel(level)
 	return nil
-}
-
-// WithLogging выполняет функцию middleware с логированием.
-// Содержит сведения о URI, методе запроса и времени, затраченного на его выполнение.
-// Сведения об ответах должны содержать код статуса и размер содержимого ответа.
-func WithLogging(next http.Handler) http.Handler {
-	logFn := func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		responseData := &logger.ResponseData{
-			Status: 0,
-			Size:   0,
-		}
-		lw := logger.LoggingResponseWriter{
-			ResponseWriter: w,
-			ResponseData:   responseData,
-		}
-
-		next.ServeHTTP(&lw, r)
-
-		duration := time.Since(start)
-
-		log.WithFields(log.Fields{
-			"uri":      r.RequestURI,
-			"method":   r.Method,
-			"duration": duration,
-			"status":   responseData.Status,
-			"size":     responseData.Size,
-		}).Info("request details: ")
-	}
-	return http.HandlerFunc(logFn)
 }
 
 // badRequest задает ошибку 400 по умолчанию на неизвестные запросы
