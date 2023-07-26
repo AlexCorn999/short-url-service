@@ -178,7 +178,10 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	urlNew := store.NewURL(link, url.URL)
-	s.storage.WriteURL(urlNew, idForData)
+	if err := s.storage.WriteURL(urlNew, idForData); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	// запись ссылки в структуру ответа
 	var result URLResult

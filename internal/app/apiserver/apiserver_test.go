@@ -88,8 +88,7 @@ func TestStringAccept(t *testing.T) {
 }
 
 func TestStringBack(t *testing.T) {
-	config := NewConfig()
-	server := New(config)
+	server := New(NewConfig())
 
 	type want struct {
 		statusCode  int
@@ -132,6 +131,8 @@ func TestStringBack(t *testing.T) {
 func TestShortenURL(t *testing.T) {
 	config := NewConfig()
 	server := New(config)
+	server.configureRouter()
+	server.storage.CreateBacketURL()
 
 	type want struct {
 		statusCode int
@@ -190,5 +191,6 @@ func TestShortenURL(t *testing.T) {
 		assert.Equal(t, tc.want.statusCode, result.StatusCode)
 		assert.Equal(t, tc.want.response, string(body))
 	}
+
 }
 */
