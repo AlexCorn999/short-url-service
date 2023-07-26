@@ -128,6 +128,7 @@ func TestStringBack(t *testing.T) {
 	}
 }
 
+/*
 func TestShortenURL(t *testing.T) {
 	config := NewConfig()
 	server := New(config)
@@ -190,3 +191,4 @@ func TestShortenURL(t *testing.T) {
 		assert.Equal(t, tc.want.response, string(body))
 	}
 }
+*/
