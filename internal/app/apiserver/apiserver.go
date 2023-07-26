@@ -12,6 +12,7 @@ import (
 	"github.com/AlexCorn999/short-url-service/internal/app/logger"
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/go-chi/chi"
+	bolt "go.etcd.io/bbolt"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -28,7 +29,7 @@ type URLResult struct {
 
 // APIServer ...
 type APIServer struct {
-	storage store.Storage
+	storage *store.Db
 	logger  *log.Logger
 	config  *Config
 	router  *chi.Mux
@@ -36,21 +37,25 @@ type APIServer struct {
 
 // New APIServer
 func New(config *Config) *APIServer {
+	db, err := bolt.Open(config.FilePath, 0666, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &APIServer{
 		config:  config,
 		logger:  log.New(),
 		router:  chi.NewRouter(),
-		storage: *store.NewStorage(),
+		storage: store.NewDb(db),
 	}
 }
 
 // Start APIServer
 func (s *APIServer) Start() error {
 	s.configureRouter()
+	s.storage.CreateBacketURL()
 
-	if err := s.configureStore(); err != nil {
-		return err
-	}
+	defer s.storage.Store.Close()
 
 	if err := s.configureLogger(); err != nil {
 		return err
@@ -70,14 +75,6 @@ func (s *APIServer) configureRouter() {
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
 	s.router.NotFound(badRequest)
-}
-
-func (s *APIServer) configureStore() error {
-	st := store.NewStorage()
-
-	s.storage = *st
-
-	return nil
 }
 
 func (s *APIServer) configureLogger() error {
@@ -112,7 +109,6 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 
 	// запись в хранилище
 	idForData := strconv.Itoa(store.IDStorage)
-	s.storage.Data[idForData] = string(body)
 	store.IDStorage++
 
 	hostForLink := r.Host
@@ -126,6 +122,8 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
 
+	url := store.NewURL(link, string(body))
+	s.storage.WriteURL(url, idForData)
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(link))
 }
@@ -134,14 +132,11 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.String()
 
-	if _, ok := s.storage.Data[id[1:]]; !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
+	var url store.URL
 
-	link := s.storage.Data[id[1:]]
+	s.storage.ReadURL(&url, id[1:])
 
-	w.Header().Set("Location", link)
+	w.Header().Set("Location", url.OriginalURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
@@ -161,7 +156,7 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// пероверка на пустую ссылку
+	// проверка на пустую ссылку
 	if len(strings.TrimSpace(string(url.URL))) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -169,7 +164,6 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	// запись в хранилище
 	idForData := strconv.Itoa(store.IDStorage)
-	s.storage.Data[idForData] = url.URL
 	store.IDStorage++
 
 	hostForLink := r.Host
@@ -182,6 +176,9 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	} else {
 		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
+
+	urlNew := store.NewURL(link, url.URL)
+	s.storage.WriteURL(urlNew, idForData)
 
 	// запись ссылки в структуру ответа
 	var result URLResult

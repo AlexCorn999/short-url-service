@@ -12,6 +12,7 @@ import (
 type Config struct {
 	bindAddr     string
 	ShortURLAddr string
+	FilePath     string
 	LogLevel     string
 }
 
@@ -19,6 +20,7 @@ type Config struct {
 func NewConfig() *Config {
 	return &Config{
 		bindAddr: ":8080",
+		FilePath: "/tmp/short-url-db.json",
 		LogLevel: "debug",
 	}
 }
@@ -86,8 +88,10 @@ func (c *Config) ParseFlags() {
 
 	flag.Var(addr, "a", "Net address host:port")
 	flag.Var(urlAddr, "b", "address and port for short URL")
+	filePath := flag.String("f", "/tmp/short-url-db.json", "filePath for URL")
 
 	flag.Parse()
+	c.FilePath = *filePath
 
 	// проверка значения addr, чтобы записать в переменную bindAddr
 	if addr.String() != ":0" {
@@ -107,5 +111,10 @@ func (c *Config) ParseFlags() {
 	// Установка базового адреса результирующего сокращённого URL через переменные окружения
 	if envShortURL := os.Getenv("BASE_URL"); envShortURL != "" {
 		c.ShortURLAddr = envShortURL
+	}
+
+	// Установка пути к файлу сохранения URL через переменные окружения
+	if envPath := os.Getenv("FILE_STORAGE_PATH"); envPath != "" {
+		c.FilePath = envPath
 	}
 }

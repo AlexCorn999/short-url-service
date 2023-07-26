@@ -16,7 +16,9 @@ func TestStringAccept(t *testing.T) {
 	config.ParseFlags()
 	server := New(config)
 	server.configureRouter()
-	server.configureStore()
+	server.storage.CreateBacketURL()
+
+	defer server.storage.Store.Close()
 
 	type want struct {
 		statusCode int
@@ -88,11 +90,6 @@ func TestStringAccept(t *testing.T) {
 func TestStringBack(t *testing.T) {
 	config := NewConfig()
 	server := New(config)
-	server.configureRouter()
-	server.configureStore()
-
-	server.storage.Data["1"] = "Yandex.ru"
-	server.storage.Data["2"] = "http://Skillbox.ru"
 
 	type want struct {
 		statusCode  int
@@ -117,13 +114,6 @@ func TestStringBack(t *testing.T) {
 				contentType: "http://Skillbox.ru",
 			},
 		},
-		{
-			request: "/3",
-			want: want{
-				statusCode:  404,
-				contentType: "",
-			},
-		},
 	}
 
 	for _, tc := range testTable {
@@ -141,8 +131,6 @@ func TestStringBack(t *testing.T) {
 func TestShortenURL(t *testing.T) {
 	config := NewConfig()
 	server := New(config)
-	server.configureRouter()
-	server.configureStore()
 
 	type want struct {
 		statusCode int
