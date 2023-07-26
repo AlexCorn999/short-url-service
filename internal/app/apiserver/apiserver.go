@@ -29,7 +29,7 @@ type URLResult struct {
 
 // APIServer ...
 type APIServer struct {
-	storage *store.Db
+	storage *store.DB
 	logger  *log.Logger
 	config  *Config
 	router  *chi.Mux
@@ -46,7 +46,7 @@ func New(config *Config) *APIServer {
 		config:  config,
 		logger:  log.New(),
 		router:  chi.NewRouter(),
-		storage: store.NewDb(db),
+		storage: store.NewDB(db),
 	}
 }
 

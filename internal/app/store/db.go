@@ -24,19 +24,19 @@ func NewURL(short, original string) *URL {
 }
 
 // Bolt база данных
-type Db struct {
+type DB struct {
 	Store  *bolt.DB
 	Bucket *bolt.Bucket
 }
 
-func NewDb(d *bolt.DB) *Db {
-	return &Db{
+func NewDB(d *bolt.DB) *DB {
+	return &DB{
 		Store: d,
 	}
 }
 
 // WriteURL записывает url по ключу
-func (d *Db) WriteURL(url *URL, ssh string) error {
+func (d *DB) WriteURL(url *URL, ssh string) error {
 	data, err := json.Marshal(url)
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func (d *Db) WriteURL(url *URL, ssh string) error {
 }
 
 // ReadURL вычитывает url по ключу
-func (d *Db) ReadURL(url *URL, ssh string) error {
+func (d *DB) ReadURL(url *URL, ssh string) error {
 	var v []byte
 	d.Store.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("URLBucket"))
@@ -66,7 +66,7 @@ func (d *Db) ReadURL(url *URL, ssh string) error {
 }
 
 // CreateBacketURL создает хранилище для url
-func (d *Db) CreateBacketURL() error {
+func (d *DB) CreateBacketURL() error {
 	return d.Store.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucket([]byte("URLBucket"))
 		if err != nil {
