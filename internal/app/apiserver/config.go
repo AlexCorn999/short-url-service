@@ -12,12 +12,16 @@ import (
 type Config struct {
 	bindAddr     string
 	ShortURLAddr string
+	FilePath     string
+	LogLevel     string
 }
 
 // NewConfig ...
 func NewConfig() *Config {
 	return &Config{
 		bindAddr: ":8080",
+		FilePath: "/tmp/short-url-db.json",
+		LogLevel: "debug",
 	}
 }
 
@@ -74,7 +78,7 @@ func (a *NetAddress) Set(s string) error {
 }
 
 // parseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
-func (c *Config) parseFlags() {
+func (c *Config) ParseFlags() {
 
 	addr := new(NetAddress)
 	_ = flag.Value(addr)
@@ -84,8 +88,10 @@ func (c *Config) parseFlags() {
 
 	flag.Var(addr, "a", "Net address host:port")
 	flag.Var(urlAddr, "b", "address and port for short URL")
+	filePath := flag.String("f", "/tmp/short-url-db.json", "filePath for URL")
 
 	flag.Parse()
+	c.FilePath = *filePath
 
 	// проверка значения addr, чтобы записать в переменную bindAddr
 	if addr.String() != ":0" {
@@ -105,5 +111,10 @@ func (c *Config) parseFlags() {
 	// Установка базового адреса результирующего сокращённого URL через переменные окружения
 	if envShortURL := os.Getenv("BASE_URL"); envShortURL != "" {
 		c.ShortURLAddr = envShortURL
+	}
+
+	// Установка пути к файлу сохранения URL через переменные окружения
+	if envPath := os.Getenv("FILE_STORAGE_PATH"); envPath != "" {
+		c.FilePath = envPath
 	}
 }
