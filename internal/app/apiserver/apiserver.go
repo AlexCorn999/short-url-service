@@ -109,7 +109,7 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 
 	// запись в хранилище
 	idForData := strconv.Itoa(store.IDStorage)
-	store.IDStorage++
+	store.NextID(&store.IDStorage)
 
 	hostForLink := r.Host
 	var link string
@@ -164,7 +164,7 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	// запись в хранилище
 	idForData := strconv.Itoa(store.IDStorage)
-	store.IDStorage++
+	store.NextID(&store.IDStorage)
 
 	hostForLink := r.Host
 	var link string

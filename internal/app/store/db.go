@@ -35,6 +35,10 @@ func NewDB(d *bolt.DB) *DB {
 	}
 }
 
+func NextID(id *int) {
+	*id++
+}
+
 // WriteURL записывает url по ключу
 func (d *DB) WriteURL(url *URL, ssh string) error {
 	data, err := json.Marshal(url)
