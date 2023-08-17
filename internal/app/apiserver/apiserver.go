@@ -79,7 +79,7 @@ func (s *APIServer) configureRouter() {
 	s.router.Post("/api/shorten", s.ShortenURL)
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
-	s.router.Get("/ping", s.Ping)
+	//s.router.Get("/ping", s.Ping)
 	s.router.NotFound(badRequest)
 }
 
