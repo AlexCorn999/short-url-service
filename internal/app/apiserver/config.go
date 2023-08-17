@@ -20,10 +20,9 @@ type Config struct {
 // NewConfig ...
 func NewConfig() *Config {
 	return &Config{
-		bindAddr:     ":8080",
-		databaseAddr: "host=127.0.0.1 port=5432 user=postgres sslmode=disable password=1234",
-		FilePath:     "/tmp/short-url-db.json",
-		LogLevel:     "debug",
+		bindAddr: ":8080",
+		FilePath: "/tmp/short-url-db.json",
+		LogLevel: "debug",
 	}
 }
 
@@ -91,7 +90,8 @@ func (c *Config) ParseFlags() {
 	flag.Var(addr, "a", "Net address host:port")
 	flag.Var(urlAddr, "b", "address and port for short URL")
 	filePath := flag.String("f", "/tmp/short-url-db.json", "filePath for URL")
-	dataAddr := flag.String("d", "host=127.0.0.1 port=5432 user=postgres sslmode=disable password=1234", "port for database")
+	// host=127.0.0.1 port=5432 user=postgres sslmode=disable password=1234
+	dataAddr := flag.String("d", "", "port for database")
 
 	flag.Parse()
 	c.FilePath = *filePath

@@ -95,6 +95,10 @@ func (s *APIServer) configureLogger() error {
 }
 
 func (s *APIServer) configureStore() error {
+	if s.config.databaseAddr == "" {
+		return nil
+	}
+
 	if err := s.storage.OpenDB(s.config.databaseAddr); err != nil {
 		return err
 	}
