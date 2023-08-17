@@ -54,10 +54,10 @@ func New(config *Config) *APIServer {
 func (s *APIServer) Start() error {
 	s.configureRouter()
 
-	if err := s.configureStore(); err != nil {
-		return err
-	}
-	defer s.storage.CloseDB()
+	//if err := s.configureStore(); err != nil {
+	//	return err
+	//}
+	//defer s.storage.CloseDB()
 
 	s.storage.CreateBacketURL()
 	defer s.storage.Store.Close()
@@ -94,12 +94,13 @@ func (s *APIServer) configureLogger() error {
 	return nil
 }
 
+/*
 func (s *APIServer) configureStore() error {
 	if err := s.storage.OpenDB(s.config.databaseAddr); err != nil {
 		return err
 	}
 	return nil
-}
+}*/
 
 // badRequest задает ошибку 400 по умолчанию на неизвестные запросы
 func badRequest(w http.ResponseWriter, r *http.Request) {
