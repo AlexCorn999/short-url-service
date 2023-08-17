@@ -20,9 +20,10 @@ type Config struct {
 // NewConfig ...
 func NewConfig() *Config {
 	return &Config{
-		bindAddr: ":8080",
-		FilePath: "/tmp/short-url-db.json",
-		LogLevel: "debug",
+		bindAddr:     ":8080",
+		databaseAddr: "host=127.0.0.1 port=5432 user=postgres sslmode=disable password=1234",
+		FilePath:     "/tmp/short-url-db.json",
+		LogLevel:     "debug",
 	}
 }
 
