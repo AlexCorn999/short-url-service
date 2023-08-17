@@ -1,0 +1,10 @@
+version: "3.5"
+services:
+  postgres:
+    container_name: yandex_course
+    image: postgres:13.3
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=1234
+    ports:
+      - "5432:5432"

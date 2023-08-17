@@ -53,8 +53,13 @@ func New(config *Config) *APIServer {
 // Start APIServer
 func (s *APIServer) Start() error {
 	s.configureRouter()
-	s.storage.CreateBacketURL()
 
+	if err := s.configureStore(); err != nil {
+		return err
+	}
+	defer s.storage.CloseDB()
+
+	s.storage.CreateBacketURL()
 	defer s.storage.Store.Close()
 
 	if err := s.configureLogger(); err != nil {
@@ -74,6 +79,7 @@ func (s *APIServer) configureRouter() {
 	s.router.Post("/api/shorten", s.ShortenURL)
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
+	s.router.Get("/ping", s.Ping)
 	s.router.NotFound(badRequest)
 }
 
@@ -85,6 +91,13 @@ func (s *APIServer) configureLogger() error {
 	}
 
 	s.logger.SetLevel(level)
+	return nil
+}
+
+func (s *APIServer) configureStore() error {
+	if err := s.storage.OpenDB(s.config.databaseAddr); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -196,4 +209,13 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write(objectJSON)
+}
+
+// Ping проверяет соединение с базой данных.
+func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
+	if err := s.storage.CheckPing(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }

@@ -12,6 +12,7 @@ import (
 type Config struct {
 	bindAddr     string
 	ShortURLAddr string
+	databaseAddr string
 	FilePath     string
 	LogLevel     string
 }
@@ -89,9 +90,11 @@ func (c *Config) ParseFlags() {
 	flag.Var(addr, "a", "Net address host:port")
 	flag.Var(urlAddr, "b", "address and port for short URL")
 	filePath := flag.String("f", "/tmp/short-url-db.json", "filePath for URL")
+	dataAddr := flag.String("d", "host=127.0.0.1 port=5432 user=postgres sslmode=disable password=1234", "port for database")
 
 	flag.Parse()
 	c.FilePath = *filePath
+	c.databaseAddr = *dataAddr
 
 	// проверка значения addr, чтобы записать в переменную bindAddr
 	if addr.String() != ":0" {
@@ -116,5 +119,10 @@ func (c *Config) ParseFlags() {
 	// Установка пути к файлу сохранения URL через переменные окружения
 	if envPath := os.Getenv("FILE_STORAGE_PATH"); envPath != "" {
 		c.FilePath = envPath
+	}
+
+	// Установка порта подключения к базе данных через переменные окружения
+	if envPath := os.Getenv("DATABASE_DSN"); envPath != "" {
+		c.databaseAddr = envPath
 	}
 }

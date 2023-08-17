@@ -1,8 +1,11 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/jackc/pgx/v5"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -25,8 +28,9 @@ func NewURL(short, original string) *URL {
 
 // Bolt база данных
 type DB struct {
-	Store  *bolt.DB
-	Bucket *bolt.Bucket
+	dataBase *pgx.Conn
+	Store    *bolt.DB
+	Bucket   *bolt.Bucket
 }
 
 func NewDB(d *bolt.DB) *DB {
@@ -37,6 +41,27 @@ func NewDB(d *bolt.DB) *DB {
 
 func NextID(id *int) {
 	*id++
+}
+
+// OpenDB открывает подключение к базе данных
+func (d *DB) OpenDB(addr string) error {
+	db, err := pgx.Connect(context.Background(), addr)
+	if err != nil {
+		return err
+	}
+
+	d.dataBase = db
+	return nil
+}
+
+// CloseDB закрывает подключение к базе данных
+func (d *DB) CloseDB() error {
+	return d.dataBase.Close(context.Background())
+}
+
+// CheckPing проверяет подключение к базе данных.
+func (d *DB) CheckPing() error {
+	return d.dataBase.Ping(context.Background())
 }
 
 // WriteURL записывает url по ключу
