@@ -37,7 +37,8 @@ type APIServer struct {
 
 // New APIServer
 func New(config *Config) *APIServer {
-	if config.FilePath != "" {
+
+	if len(strings.TrimSpace(config.FilePath)) != 0 {
 		db, err := bolt.Open(config.FilePath, 0666, nil)
 		if err != nil {
 			log.Fatal(err)
@@ -62,12 +63,13 @@ func New(config *Config) *APIServer {
 func (s *APIServer) Start() error {
 	s.configureRouter()
 
-	if s.config.databaseAddr != "" {
+	if len(strings.TrimSpace(s.config.databaseAddr)) != 0 {
 		if err := s.configureStore(); err != nil {
 			return err
 		}
 		defer s.storage.CloseDB()
-	} else if s.config.FilePath != "" {
+
+	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		s.storage.CreateBacketURL()
 		defer s.storage.Store.Close()
 	}
@@ -103,7 +105,8 @@ func (s *APIServer) configureLogger() error {
 }
 
 func (s *APIServer) configureStore() error {
-	if s.config.databaseAddr == "" {
+
+	if len(strings.TrimSpace(s.config.databaseAddr)) == 0 {
 		return nil
 	}
 	if err := s.storage.OpenDB(s.config.databaseAddr); err != nil {
@@ -152,7 +155,8 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	url := store.NewURL(link, string(body))
 
 	// разделение для записи БД / Файл / Память
-	if s.config.databaseAddr != "" {
+
+	if len(strings.TrimSpace(s.config.databaseAddr)) != 0 {
 		if err := s.storage.AddURL(url, idForData); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -161,7 +165,7 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(link))
 		return
 
-	} else if s.config.FilePath != "" {
+	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 
 		if err := s.storage.WriteURL(url, idForData); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -186,7 +190,7 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 
 	var url store.URL
 
-	if s.config.databaseAddr != "" {
+	if len(strings.TrimSpace(s.config.databaseAddr)) != 0 {
 		addr, err := s.storage.AddrBack(id[1:])
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
@@ -194,7 +198,7 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Location", addr)
 
-	} else if s.config.FilePath != "" {
+	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		s.storage.ReadURL(&url, id[1:])
 		w.Header().Set("Location", url.OriginalURL)
 
@@ -248,13 +252,14 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
 
-	if s.config.databaseAddr != "" {
+	if len(strings.TrimSpace(s.config.databaseAddr)) != 0 {
 		urlNew := store.NewURL(link, url.URL)
 		if err := s.storage.AddURL(urlNew, idForData); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-	} else if s.config.FilePath != "" {
+
+	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		urlNew := store.NewURL(link, url.URL)
 		if err := s.storage.WriteURL(urlNew, idForData); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -282,7 +287,7 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 // Ping проверяет соединение с базой данных.
 func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
 	// проверка на работу только с базой данных.
-	if s.config.databaseAddr != "" {
+	if len(strings.TrimSpace(s.config.databaseAddr)) != 0 {
 		if err := s.storage.CheckPing(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
