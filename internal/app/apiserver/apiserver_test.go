@@ -16,9 +16,8 @@ func TestStringAccept(t *testing.T) {
 	config.ParseFlags()
 	server := New(config)
 	server.configureRouter()
-	server.storage.CreateBacketURL()
-
-	defer server.storage.Store.Close()
+	//server.storage.CreateBacketURL()
+	//defer server.storage.Store.Close()
 
 	type want struct {
 		statusCode int
@@ -89,6 +88,8 @@ func TestStringAccept(t *testing.T) {
 
 func TestStringBack(t *testing.T) {
 	server := New(NewConfig())
+	server.storage.MemoryDB["1"] = "Yandex.ru"
+	server.storage.MemoryDB["2"] = "http://Skillbox.ru"
 
 	type want struct {
 		statusCode  int

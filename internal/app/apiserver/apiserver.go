@@ -37,16 +37,24 @@ type APIServer struct {
 
 // New APIServer
 func New(config *Config) *APIServer {
-	db, err := bolt.Open(config.FilePath, 0666, nil)
-	if err != nil {
-		log.Fatal(err)
+	if config.FilePath != "" {
+		db, err := bolt.Open(config.FilePath, 0666, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return &APIServer{
+			config:  config,
+			logger:  log.New(),
+			router:  chi.NewRouter(),
+			storage: store.NewDB(db),
+		}
 	}
 
 	return &APIServer{
 		config:  config,
 		logger:  log.New(),
 		router:  chi.NewRouter(),
-		storage: store.NewDB(db),
+		storage: store.NewMemoryDB(),
 	}
 }
 
@@ -54,13 +62,15 @@ func New(config *Config) *APIServer {
 func (s *APIServer) Start() error {
 	s.configureRouter()
 
-	if err := s.configureStore(); err != nil {
-		return err
+	if s.config.databaseAddr != "" {
+		if err := s.configureStore(); err != nil {
+			return err
+		}
+		defer s.storage.CloseDB()
+	} else if s.config.FilePath != "" {
+		s.storage.CreateBacketURL()
+		defer s.storage.Store.Close()
 	}
-	defer s.storage.CloseDB()
-
-	s.storage.CreateBacketURL()
-	defer s.storage.Store.Close()
 
 	if err := s.configureLogger(); err != nil {
 		return err
@@ -85,11 +95,9 @@ func (s *APIServer) configureRouter() {
 
 func (s *APIServer) configureLogger() error {
 	level, err := log.ParseLevel(s.config.LogLevel)
-
 	if err != nil {
 		return err
 	}
-
 	s.logger.SetLevel(level)
 	return nil
 }
@@ -98,8 +106,10 @@ func (s *APIServer) configureStore() error {
 	if s.config.databaseAddr == "" {
 		return nil
 	}
-
 	if err := s.storage.OpenDB(s.config.databaseAddr); err != nil {
+		return err
+	}
+	if err := s.storage.InitTables(); err != nil {
 		return err
 	}
 	return nil
@@ -140,9 +150,34 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	}
 
 	url := store.NewURL(link, string(body))
-	s.storage.WriteURL(url, idForData)
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(link))
+
+	// разделение для записи БД / Файл / Память
+	if s.config.databaseAddr != "" {
+		if err := s.storage.AddURL(url, idForData); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(link))
+		return
+
+	} else if s.config.FilePath != "" {
+
+		if err := s.storage.WriteURL(url, idForData); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(link))
+		return
+
+	} else {
+		s.storage.MemoryDB[idForData] = string(body)
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(link))
+		return
+	}
+
 }
 
 // StringBack принимает id и возвращает ссылку
@@ -151,9 +186,23 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 
 	var url store.URL
 
-	s.storage.ReadURL(&url, id[1:])
+	if s.config.databaseAddr != "" {
+		s.storage.AddrBack(id[1:])
 
-	w.Header().Set("Location", url.OriginalURL)
+	} else if s.config.FilePath != "" {
+		s.storage.ReadURL(&url, id[1:])
+		w.Header().Set("Location", url.OriginalURL)
+
+	} else {
+		if _, ok := s.storage.MemoryDB[id[1:]]; !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		link := s.storage.MemoryDB[id[1:]]
+		w.Header().Set("Location", link)
+	}
+
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
@@ -194,10 +243,20 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
 
-	urlNew := store.NewURL(link, url.URL)
-	if err := s.storage.WriteURL(urlNew, idForData); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	if s.config.databaseAddr != "" {
+		urlNew := store.NewURL(link, url.URL)
+		if err := s.storage.AddURL(urlNew, idForData); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	} else if s.config.FilePath != "" {
+		urlNew := store.NewURL(link, url.URL)
+		if err := s.storage.WriteURL(urlNew, idForData); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	} else {
+		s.storage.MemoryDB[idForData] = url.URL
 	}
 
 	// запись ссылки в структуру ответа
@@ -217,9 +276,14 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 // Ping проверяет соединение с базой данных.
 func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
-	if err := s.storage.CheckPing(); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	// проверка на работу только с базой данных.
+	if s.config.databaseAddr != "" {
+		if err := s.storage.CheckPing(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
 	}
-	w.WriteHeader(http.StatusOK)
 }
