@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -68,28 +69,39 @@ func (d *DB) CloseDB() error {
 
 // InitTables первичная инициализация таблицы для хранения URL.
 func (d *DB) InitTables() error {
-	_, err := d.dataBase.Exec(context.Background(), "create table url(id varchar(255) not null, shortURL varchar(255) not null, originalURL varchar(255) not null)")
+	_, err := d.dataBase.Exec(context.Background(), "create table url(id varchar(255) not null, shorturl varchar(255) not null, originalurl varchar(255) not null)")
 	return err
 }
 
 // AddURL добавляет URL в базу данных.
 func (d *DB) AddURL(url *URL, ssh string) error {
-	_, err := d.dataBase.Exec(context.Background(), "insert into url (id, shortURL, originalURL values ($1, $2, $3)", ssh, url.OriginalURL, url.ShortURL)
+	_, err := d.dataBase.Exec(context.Background(), "insert into url (id, shorturl, originalurl) values ($1, $2, $3)", ssh, url.OriginalURL, url.ShortURL)
 	return err
 }
 
 // AddrBack возвращает адрес по ключу из БД.
 func (d *DB) AddrBack(ssh string) (string, error) {
-	row, err := d.dataBase.Query(context.Background(), "select originalURL from url where id = $1", ssh)
+	rows, err := d.dataBase.Query(context.Background(), "select shorturl from url where id = $1", ssh)
 	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var link string
+	for rows.Next() {
+		if err = rows.Scan(&link); err != nil {
+			return "", err
+		}
+	}
+
+	if err = rows.Err(); err != nil {
 		return "", err
 	}
 
-	var link string
-	err = row.Scan(&link)
-	if err != nil {
-		return "", err
+	if link == "" {
+		return "", errors.New("there was no link to the address specified")
 	}
+
 	return link, nil
 }
 

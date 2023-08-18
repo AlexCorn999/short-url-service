@@ -187,7 +187,12 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 	var url store.URL
 
 	if s.config.databaseAddr != "" {
-		s.storage.AddrBack(id[1:])
+		addr, err := s.storage.AddrBack(id[1:])
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Location", addr)
 
 	} else if s.config.FilePath != "" {
 		s.storage.ReadURL(&url, id[1:])
