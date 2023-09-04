@@ -52,14 +52,14 @@ func NextID(id *int) {
 }
 
 // OpenDB открывает подключение к базе данных
-func (d *DB) OpenDB(addr string) error {
+func (d *DB) OpenDB(addr string) (*DB, error) {
 	db, err := pgx.Connect(context.Background(), addr)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	d.dataBase = db
-	return nil
+	return &DB{
+		dataBase: db,
+	}, nil
 }
 
 // CloseDB закрывает подключение к базе данных
