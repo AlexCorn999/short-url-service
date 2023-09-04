@@ -17,6 +17,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type batchURL struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+	shortURL      string
+}
+
+type resultBatchURL struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
 // URL для JSON объекта
 type shortenURL struct {
 	URL string `json:"url"`
@@ -74,6 +85,7 @@ func (s *APIServer) configureRouter() {
 	s.router = chi.NewRouter()
 	s.router.Use(logger.WithLogging)
 	s.router.Use(gzip.GzipHandle)
+	s.router.Post("/api/shorten/batch", s.BatchURL)
 	s.router.Post("/api/shorten", s.ShortenURL)
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
@@ -281,6 +293,123 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	// запись ссылки в структуру ответа
 	var result URLResult
 	result.ResultURL = link
+
+	objectJSON, err := json.Marshal(result)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write(objectJSON)
+}
+
+// BatchURL принимает множество URL в формате JSON.
+// Возвращает в ответ множество объектов JSON.
+func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var urls []batchURL
+
+	if err := json.Unmarshal(body, &urls); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// проверка на пустую ссылку
+	for _, url := range urls {
+		if len(strings.TrimSpace(url.OriginalURL)) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	if s.typeStore == "database" {
+
+		for i := 0; i < len(urls); i++ {
+			// запись в хранилище
+			idForData := strconv.Itoa(store.IDStorage)
+			store.NextID(&store.IDStorage)
+
+			hostForLink := r.Host
+			var link string
+
+			// проверка для работы флага b
+			if s.config.ShortURLAddr != "" {
+				hostForLink = s.config.ShortURLAddr
+				link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+			} else {
+				link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+			}
+
+			urlNew := store.NewURL(link, urls[i].OriginalURL)
+
+			if err := s.storage.AddURL(urlNew, idForData); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			urls[i].shortURL = link
+
+		}
+
+	} else if s.typeStore == "file" {
+		for i := 0; i < len(urls); i++ {
+			// запись в хранилище
+			idForData := strconv.Itoa(store.IDStorage)
+			store.NextID(&store.IDStorage)
+
+			hostForLink := r.Host
+			var link string
+
+			// проверка для работы флага b
+			if s.config.ShortURLAddr != "" {
+				hostForLink = s.config.ShortURLAddr
+				link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+			} else {
+				link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+			}
+
+			urlNew := store.NewURL(link, urls[i].OriginalURL)
+			if err := s.storage.WriteURL(urlNew, idForData); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			urls[i].shortURL = link
+		}
+	} else {
+		for i := 0; i < len(urls); i++ {
+			// запись в хранилище
+			idForData := strconv.Itoa(store.IDStorage)
+			store.NextID(&store.IDStorage)
+			s.storage.MemoryDB[idForData] = urls[i].OriginalURL
+
+			hostForLink := r.Host
+			var link string
+			if s.config.ShortURLAddr != "" {
+				hostForLink = s.config.ShortURLAddr
+				link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+			} else {
+				link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+			}
+			urls[i].shortURL = link
+		}
+	}
+
+	// запись ссылки в структуру ответа
+	var result []resultBatchURL
+
+	for _, url := range urls {
+		res := resultBatchURL{
+			CorrelationID: url.CorrelationID,
+			ShortURL:      url.shortURL,
+		}
+		result = append(result, res)
+	}
 
 	objectJSON, err := json.Marshal(result)
 	if err != nil {
