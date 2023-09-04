@@ -29,19 +29,21 @@ type URLResult struct {
 
 // APIServer ...
 type APIServer struct {
-	storage   *store.DB
-	typeStore string
-	logger    *log.Logger
-	config    *Config
-	router    *chi.Mux
+	storage     *store.DB
+	initialized bool
+	typeStore   string
+	logger      *log.Logger
+	config      *Config
+	router      *chi.Mux
 }
 
 // New APIServer
 func New(config *Config) *APIServer {
 	return &APIServer{
-		config: config,
-		logger: log.New(),
-		router: chi.NewRouter(),
+		config:      config,
+		initialized: false,
+		logger:      log.New(),
+		router:      chi.NewRouter(),
 	}
 }
 
@@ -96,10 +98,14 @@ func (s *APIServer) configureStore() error {
 			return err
 		}
 		s.storage = db
-		if err := s.storage.InitTables(); err != nil {
-			return err
-		}
 		s.typeStore = "database"
+
+		if err := s.storage.CheckTables(); err != nil {
+			if err := s.storage.InitTables(); err != nil {
+				return err
+			}
+		}
+
 	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		db, err := bolt.Open(s.config.FilePath, 0666, nil)
 		if err != nil {

@@ -73,6 +73,26 @@ func (d *DB) InitTables() error {
 	return err
 }
 
+func (d *DB) CheckTables() error {
+	rows, err := d.dataBase.Query(context.Background(), "SELECT id FROM url")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tableName string
+		if err := rows.Scan(&tableName); err != nil {
+			return err
+		}
+
+		if tableName == "id" {
+			return nil // The table already exists, no need to do anything
+		}
+	}
+	return nil
+}
+
 // AddURL добавляет URL в базу данных.
 func (d *DB) AddURL(url *URL, ssh string) error {
 	_, err := d.dataBase.Exec(context.Background(), "insert into url (id, shorturl, originalurl) values ($1, $2, $3)", ssh, url.OriginalURL, url.ShortURL)
