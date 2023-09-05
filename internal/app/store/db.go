@@ -108,6 +108,32 @@ func (d *DB) AddURL(url *URL, ssh string) error {
 	return nil
 }
 
+// ShortUrlBack возвращает ссылку с сокращенным URL.
+func (d *DB) ShortUrlBack(ssh string) (string, error) {
+	rows, err := d.dataBase.Query(context.Background(), "select originalurl from url where id = $1", ssh)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	var link string
+	for rows.Next() {
+		if err = rows.Scan(&link); err != nil {
+			return "", err
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return "", err
+	}
+
+	if link == "" {
+		return "", errors.New("there was no link to the address specified")
+	}
+
+	return link, nil
+}
+
 // AddrBack возвращает адрес по ключу из БД.
 func (d *DB) AddrBack(ssh string) (string, error) {
 	rows, err := d.dataBase.Query(context.Background(), "select shorturl from url where id = $1", ssh)

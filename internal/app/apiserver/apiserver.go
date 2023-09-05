@@ -174,8 +174,9 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	if s.typeStore == "database" {
 		if err := s.storage.AddURL(url, idForData); err != nil {
 
+			// проверка, что ссылка уже есть в базе
 			if err.Error() == "URL already exists in the database" {
-				addr, err := s.storage.AddrBack(idForData)
+				addr, err := s.storage.ShortUrlBack(idForData)
 				if err != nil {
 					w.WriteHeader(http.StatusNotFound)
 					return
@@ -293,8 +294,9 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		urlNew := store.NewURL(link, url.URL)
 		if err := s.storage.AddURL(urlNew, idForData); err != nil {
 
+			// проверка, что ссылка уже есть в базе
 			if err.Error() == "URL already exists in the database" {
-				addr, err := s.storage.AddrBack(idForData)
+				addr, err := s.storage.ShortUrlBack(idForData)
 				if err != nil {
 					w.WriteHeader(http.StatusNotFound)
 					return
