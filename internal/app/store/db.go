@@ -51,6 +51,10 @@ func NextID(id *int) {
 	*id++
 }
 
+func BackID(id *int) {
+	*id--
+}
+
 // OpenDB открывает подключение к базе данных
 func (d *DB) OpenDB(addr string) (*DB, error) {
 	db, err := pgx.Connect(context.Background(), addr)
@@ -94,18 +98,36 @@ func (d *DB) CheckTables() error {
 }
 
 // AddURL добавляет URL в базу данных.
-func (d *DB) AddURL(url *URL, ssh string) error {
+func (d *DB) AddURL(url *URL, ssh string) (string, error) {
 	result, err := d.dataBase.Exec(context.Background(), "insert into url (id, shorturl, originalurl) values ($1, $2, $3) on conflict (shorturl) do nothing", ssh, url.OriginalURL, url.ShortURL)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	rowsAffected := result.RowsAffected()
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("URL already exists in the database")
+
+		rows, err := d.dataBase.Query(context.Background(), "select originalurl from url where shorturl = $1", url.OriginalURL)
+		if err != nil {
+			return "", err
+		}
+		defer rows.Close()
+
+		var result string
+		for rows.Next() {
+			if err = rows.Scan(&result); err != nil {
+				return "", err
+			}
+		}
+
+		if err = rows.Err(); err != nil {
+			return "", err
+		}
+
+		return result, fmt.Errorf("URL already exists in the database")
 	}
-	return nil
+	return "", nil
 }
 
 // ShortUrlBack возвращает ссылку с сокращенным URL.

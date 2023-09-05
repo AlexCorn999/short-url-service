@@ -172,17 +172,13 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 
 	// разделение для записи БД / Файл / Память
 	if s.typeStore == "database" {
-		if err := s.storage.AddURL(url, idForData); err != nil {
+		if result, err := s.storage.AddURL(url, idForData); err != nil {
 
 			// проверка, что ссылка уже есть в базе
 			if err.Error() == "URL already exists in the database" {
-				addr, err := s.storage.ShortUrlBack(idForData)
-				if err != nil {
-					w.WriteHeader(http.StatusNotFound)
-					return
-				}
+				store.BackID(&store.IDStorage)
 				w.WriteHeader(http.StatusConflict)
-				w.Write([]byte(addr))
+				w.Write([]byte(result))
 				return
 
 			} else {
@@ -292,18 +288,14 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	if s.typeStore == "database" {
 
 		urlNew := store.NewURL(link, url.URL)
-		if err := s.storage.AddURL(urlNew, idForData); err != nil {
+		if resultt, err := s.storage.AddURL(urlNew, idForData); err != nil {
 
 			// проверка, что ссылка уже есть в базе
 			if err.Error() == "URL already exists in the database" {
-				addr, err := s.storage.ShortUrlBack(idForData)
-				if err != nil {
-					w.WriteHeader(http.StatusNotFound)
-					return
-				}
+				store.BackID(&store.IDStorage)
 
 				var result shortenURL
-				result.URL = addr
+				result.URL = resultt
 				objectJSON, err := json.Marshal(result)
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
@@ -390,7 +382,7 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 
 			urlNew := store.NewURL(link, urls[i].OriginalURL)
 
-			if err := s.storage.AddURL(urlNew, idForData); err != nil {
+			if _, err := s.storage.AddURL(urlNew, idForData); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
