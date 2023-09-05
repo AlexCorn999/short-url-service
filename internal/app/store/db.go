@@ -91,7 +91,7 @@ func (d *DB) CheckTables() error {
 		}
 
 		if tableName == "id" {
-			return nil // The table already exists, no need to do anything
+			return nil
 		}
 	}
 	return nil
@@ -128,32 +128,6 @@ func (d *DB) AddURL(url *URL, ssh string) (string, error) {
 		return result, fmt.Errorf("URL already exists in the database")
 	}
 	return "", nil
-}
-
-// ShortUrlBack возвращает ссылку с сокращенным URL.
-func (d *DB) ShortUrlBack(ssh string) (string, error) {
-	rows, err := d.dataBase.Query(context.Background(), "select originalurl from url where id = $1", ssh)
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
-	var link string
-	for rows.Next() {
-		if err = rows.Scan(&link); err != nil {
-			return "", err
-		}
-	}
-
-	if err = rows.Err(); err != nil {
-		return "", err
-	}
-
-	if link == "" {
-		return "", errors.New("there was no link to the address specified")
-	}
-
-	return link, nil
 }
 
 // AddrBack возвращает адрес по ключу из БД.
