@@ -69,7 +69,7 @@ func (d *DB) CloseDB() error {
 
 // InitTables первичная инициализация таблицы для хранения URL.
 func (d *DB) InitTables() error {
-	_, err := d.dataBase.Exec(context.Background(), "create table url(id varchar(255) not null, shorturl varchar(255) not null, originalurl varchar(255) not null)")
+	_, err := d.dataBase.Exec(context.Background(), "create table url(id varchar(255) not null, shorturl varchar(255) not null unique, originalurl varchar(255) not null)")
 	return err
 }
 
@@ -95,8 +95,17 @@ func (d *DB) CheckTables() error {
 
 // AddURL добавляет URL в базу данных.
 func (d *DB) AddURL(url *URL, ssh string) error {
-	_, err := d.dataBase.Exec(context.Background(), "insert into url (id, shorturl, originalurl) values ($1, $2, $3)", ssh, url.OriginalURL, url.ShortURL)
-	return err
+	result, err := d.dataBase.Exec(context.Background(), "insert into url (id, shorturl, originalurl) values ($1, $2, $3) on conflict (shorturl) do nothing", ssh, url.OriginalURL, url.ShortURL)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected := result.RowsAffected()
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("URL already exists in the database")
+	}
+	return nil
 }
 
 // AddrBack возвращает адрес по ключу из БД.

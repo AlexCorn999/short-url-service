@@ -173,8 +173,23 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	// разделение для записи БД / Файл / Память
 	if s.typeStore == "database" {
 		if err := s.storage.AddURL(url, idForData); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
+
+			if err.Error() == "URL already exists in the database" {
+				addr, err := s.storage.AddrBack(idForData)
+				if err != nil {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				w.WriteHeader(http.StatusConflict)
+				w.Write([]byte(addr))
+				return
+
+			} else {
+				fmt.Println(err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
 		}
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(link))
@@ -274,10 +289,34 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.typeStore == "database" {
+
 		urlNew := store.NewURL(link, url.URL)
 		if err := s.storage.AddURL(urlNew, idForData); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
+
+			if err.Error() == "URL already exists in the database" {
+				addr, err := s.storage.AddrBack(idForData)
+				if err != nil {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+
+				var result shortenURL
+				result.URL = addr
+				objectJSON, err := json.Marshal(result)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				w.WriteHeader(http.StatusConflict)
+				w.Write(objectJSON)
+				return
+
+			} else {
+				fmt.Println(err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
 		}
 
 	} else if s.typeStore == "file" {
