@@ -175,12 +175,17 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		// проверка, что ссылка уже есть в базе
 		if errors.Is(err, store.ErrConfilict) {
 			store.BackID(&store.IDStorage)
+
+			res, err := s.Database.Conflict(url)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
 			w.WriteHeader(http.StatusConflict)
-			//тут нужно другое
-			w.Write([]byte(url.ShortURL))
+			w.Write([]byte(res))
 			return
 		} else {
-			fmt.Println(err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -327,9 +332,23 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 
 		urlNew := store.NewURL(link, urls[i].OriginalURL)
 		if err := s.Database.WriteURL(urlNew, idForData); err != nil {
-			fmt.Println("тут ошибка")
-			w.WriteHeader(http.StatusBadRequest)
-			return
+			// проверка, что ссылка уже есть в базе
+			if errors.Is(err, store.ErrConfilict) {
+				store.BackID(&store.IDStorage)
+				// fffffffffff
+				res, err := s.Database.Conflict(urlNew)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+
+				w.WriteHeader(http.StatusConflict)
+				w.Write([]byte(res))
+				return
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 		}
 		urls[i].shortURL = link
 	}

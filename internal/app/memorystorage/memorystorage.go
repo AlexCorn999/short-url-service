@@ -52,3 +52,7 @@ func (m *MemoryStorage) Close() error {
 func (m *MemoryStorage) CheckPing() error {
 	return nil
 }
+
+func (m *MemoryStorage) Conflict(url *store.URL) (string, error) {
+	return "", nil
+}

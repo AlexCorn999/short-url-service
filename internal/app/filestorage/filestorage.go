@@ -77,3 +77,7 @@ func (d *BoltDB) Close() error {
 func (d *BoltDB) CheckPing() error {
 	return nil
 }
+
+func (d *BoltDB) Conflict(url *store.URL) (string, error) {
+	return "", nil
+}

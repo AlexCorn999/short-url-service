@@ -29,6 +29,7 @@ func NewURL(short, original string) *URL {
 type Database interface {
 	WriteURL(url *URL, ssh string) error
 	ReadURL(url *URL, ssh string) error
+	Conflict(url *URL) (string, error)
 	Close() error
 	CheckPing() error
 }
@@ -104,7 +105,7 @@ func (d *Postgres) WriteURL(url *URL, ssh string) error {
 	return nil
 }
 
-func (d *Postgres) Conflict(url *URL, ssh string) (string, error) {
+func (d *Postgres) Conflict(url *URL) (string, error) {
 	rows, err := d.store.Query(context.Background(), "select originalurl from url where shorturl = $1", url.OriginalURL)
 	if err != nil {
 		return "", err
