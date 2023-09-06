@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
@@ -141,9 +140,11 @@ func (d *Postgres) ReadURL(url *URL, ssh string) error {
 		return errors.New("there was no link to the address specified")
 	}
 
-	if err := json.Unmarshal([]byte(link), url); err != nil {
-		return err
-	}
+	url.OriginalURL = link
+
+	//if err := json.Unmarshal([]byte(link), url); err != nil {
+	//	return err
+	//}
 
 	return nil
 }
