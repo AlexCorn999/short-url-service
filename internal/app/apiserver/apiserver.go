@@ -114,11 +114,7 @@ func (s *APIServer) configureStore() error {
 		}
 		s.Database = db
 		s.typeStore = "database"
-		if err := db.CheckTables(); err != nil {
-			if err := db.InitTables(); err != nil {
-				return err
-			}
-		}
+
 	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		db, err := filestorage.NewBoltDB(s.config.FilePath)
 		if err != nil {

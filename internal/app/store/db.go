@@ -1,10 +1,12 @@
 package store
 
 import (
-	"context"
+	"database/sql"
 	"errors"
+	"log"
 
-	"github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 )
 
 var (
@@ -35,7 +37,7 @@ type Database interface {
 
 // Postgres реализует хранение в postgres.
 type Postgres struct {
-	store *pgx.Conn
+	store *sql.DB
 }
 
 func NextID(id *int) {
@@ -48,10 +50,16 @@ func BackID(id *int) {
 
 // NewPostgres открывает подключение к базе данных.
 func NewPostgres(addr string) (*Postgres, error) {
-	db, err := pgx.Connect(context.Background(), addr)
+	db, err := goose.OpenDBWithDriver("pgx", addr)
 	if err != nil {
-		return nil, err
+		log.Fatalf("goose: failed to open DB: %v\n", err)
 	}
+
+	err = goose.Up(db, "./migrations")
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
 	return &Postgres{
 		store: db,
 	}, nil
@@ -59,17 +67,17 @@ func NewPostgres(addr string) (*Postgres, error) {
 
 // CloseDB закрывает подключение к базе данных.
 func (d *Postgres) Close() error {
-	return d.store.Close(context.Background())
+	return d.store.Close()
 }
 
 // InitTables первичная инициализация таблицы для хранения URL.
 func (d *Postgres) InitTables() error {
-	_, err := d.store.Exec(context.Background(), "create table url(id varchar(255) not null, shorturl varchar(255) not null unique, originalurl varchar(255) not null)")
+	_, err := d.store.Exec("create table url(id varchar(255) not null, shorturl varchar(255) not null unique, originalurl varchar(255) not null)")
 	return err
 }
 
 func (d *Postgres) CheckTables() error {
-	rows, err := d.store.Query(context.Background(), "SELECT id FROM url")
+	rows, err := d.store.Query("SELECT id FROM url")
 	if err != nil {
 		return err
 	}
@@ -90,12 +98,15 @@ func (d *Postgres) CheckTables() error {
 
 // WriteURL добавляет URL в базу данных.
 func (d *Postgres) WriteURL(url *URL, ssh string) error {
-	result, err := d.store.Exec(context.Background(), "insert into url (id, shorturl, originalurl) values ($1, $2, $3) on conflict (shorturl) do nothing", ssh, url.OriginalURL, url.ShortURL)
+	result, err := d.store.Exec("insert into url (id, shorturl, originalurl) values ($1, $2, $3) on conflict (shorturl) do nothing", ssh, url.OriginalURL, url.ShortURL)
 	if err != nil {
 		return err
 	}
 
-	rowsAffected := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
 
 	if rowsAffected == 0 {
 		return ErrConfilict
@@ -105,7 +116,7 @@ func (d *Postgres) WriteURL(url *URL, ssh string) error {
 }
 
 func (d *Postgres) Conflict(url *URL) (string, error) {
-	rows, err := d.store.Query(context.Background(), "select originalurl from url where shorturl = $1", url.OriginalURL)
+	rows, err := d.store.Query("select originalurl from url where shorturl = $1", url.OriginalURL)
 	if err != nil {
 		return "", err
 	}
@@ -124,11 +135,9 @@ func (d *Postgres) Conflict(url *URL) (string, error) {
 	return result, nil
 }
 
-// ReadURL(url *store.URL, ssh string) error
-//
 // ReadURL возвращает адрес по ключу из БД.
 func (d *Postgres) ReadURL(url *URL, ssh string) error {
-	row := d.store.QueryRow(context.Background(), "select shorturl from url where id = $1", ssh)
+	row := d.store.QueryRow("select shorturl from url where id = $1", ssh)
 
 	var link string
 
@@ -141,15 +150,10 @@ func (d *Postgres) ReadURL(url *URL, ssh string) error {
 	}
 
 	url.OriginalURL = link
-
-	//if err := json.Unmarshal([]byte(link), url); err != nil {
-	//	return err
-	//}
-
 	return nil
 }
 
 // CheckPing проверяет подключение к базе данных.
 func (d *Postgres) CheckPing() error {
-	return d.store.Ping(context.Background())
+	return d.store.Ping()
 }
