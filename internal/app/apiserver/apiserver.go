@@ -332,24 +332,8 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 
 		urlNew := store.NewURL(link, urls[i].OriginalURL)
 		if err := s.Database.WriteURL(urlNew, idForData); err != nil {
-			// проверка, что ссылка уже есть в базе
-			if errors.Is(err, store.ErrConfilict) {
-				store.BackID(&store.IDStorage)
-				// fffffffffff
-				res, err := s.Database.Conflict(urlNew)
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-
-				w.WriteHeader(http.StatusConflict)
-				w.Write([]byte(res))
-				return
-			} else {
-				fmt.Println(err)
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 		urls[i].shortURL = link
 	}
