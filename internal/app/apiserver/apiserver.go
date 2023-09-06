@@ -316,6 +316,12 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 		hostForLink := r.Host
 		var link string
 
+		urlNew := store.NewURL(link, urls[i].OriginalURL)
+		if err := s.Database.WriteURL(urlNew, &idForData); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		// проверка для работы флага b
 		if s.config.ShortURLAddr != "" {
 			hostForLink = s.config.ShortURLAddr
@@ -324,11 +330,6 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 		}
 
-		urlNew := store.NewURL(link, urls[i].OriginalURL)
-		if err := s.Database.WriteURL(urlNew, &idForData); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
 		urls[i].shortURL = link
 	}
 
