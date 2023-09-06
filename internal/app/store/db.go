@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -28,7 +29,7 @@ func NewURL(short, original string) *URL {
 
 // Database общая реализация базы данных.
 type Database interface {
-	WriteURL(url *URL, ssh string) error
+	WriteURL(url *URL, ssh *string) error
 	ReadURL(url *URL, ssh string) error
 	Conflict(url *URL) (string, error)
 	Close() error
@@ -71,9 +72,11 @@ func (d *Postgres) Close() error {
 }
 
 // WriteURL добавляет URL в базу данных.
-func (d *Postgres) WriteURL(url *URL, ssh string) error {
-	result, err := d.store.Exec("insert into url (id, shorturl, originalurl) values ($1, $2, $3) on conflict (shorturl) do nothing", ssh, url.OriginalURL, url.ShortURL)
+func (d *Postgres) WriteURL(url *URL, ssh *string) error {
+
+	result, err := d.store.Exec("insert into url (shorturl, originalurl) values ($1, $2) on conflict (shorturl) do nothing", url.OriginalURL, url.ShortURL)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 
@@ -84,6 +87,11 @@ func (d *Postgres) WriteURL(url *URL, ssh string) error {
 
 	if rowsAffected == 0 {
 		return ErrConfilict
+	}
+
+	err = d.store.QueryRow("SELECT id FROM url WHERE shorturl = $1", url.OriginalURL).Scan(ssh)
+	if err != nil {
+		return err
 	}
 
 	return nil

@@ -4,7 +4,7 @@
 
 CREATE TABLE
     url (
-        id VARCHAR(255) NOT NULL PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         shorturl VARCHAR(255) NOT NULL UNIQUE,
         originalurl VARCHAR(255) NOT NULL
     );

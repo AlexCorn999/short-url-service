@@ -21,13 +21,13 @@ func NewMemoryStorage() *MemoryStorage {
 }
 
 // WriteURL добавляет URL в хранилище.
-func (m *MemoryStorage) WriteURL(url *store.URL, ssh string) error {
+func (m *MemoryStorage) WriteURL(url *store.URL, ssh *string) error {
 	data, err := json.Marshal(url)
 	if err != nil {
 		return err
 	}
 
-	m.store[ssh] = string(data)
+	m.store[*ssh] = string(data)
 	return nil
 }
 

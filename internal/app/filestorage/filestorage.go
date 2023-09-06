@@ -40,7 +40,7 @@ func NewBoltDB(filePath string) (*BoltDB, error) {
 }
 
 // WriteURL записывает url по ключу
-func (d *BoltDB) WriteURL(url *store.URL, ssh string) error {
+func (d *BoltDB) WriteURL(url *store.URL, ssh *string) error {
 	data, err := json.Marshal(url)
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func (d *BoltDB) WriteURL(url *store.URL, ssh string) error {
 
 	d.Store.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("URLBucket"))
-		err := b.Put([]byte(ssh), data)
+		err := b.Put([]byte(*ssh), data)
 		return err
 	})
 	return nil
