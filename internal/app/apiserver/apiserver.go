@@ -346,6 +346,7 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte(res))
 				return
 			} else {
+				fmt.Println(err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}

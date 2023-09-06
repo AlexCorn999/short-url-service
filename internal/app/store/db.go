@@ -65,7 +65,7 @@ func (d *Postgres) Close() error {
 
 // InitTables первичная инициализация таблицы для хранения URL.
 func (d *Postgres) InitTables() error {
-	_, err := d.store.Exec(context.Background(), "create table url(id varchar(255) not null primary key, shorturl varchar(255) not null unique, originalurl varchar(255) not null)")
+	_, err := d.store.Exec(context.Background(), "create table url(id varchar(255) not null, shorturl varchar(255) not null unique, originalurl varchar(255) not null)")
 	return err
 }
 
