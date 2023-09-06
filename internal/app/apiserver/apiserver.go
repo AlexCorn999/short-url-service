@@ -2,17 +2,19 @@ package apiserver
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/AlexCorn999/short-url-service/internal/app/filestorage"
 	"github.com/AlexCorn999/short-url-service/internal/app/gzip"
 	"github.com/AlexCorn999/short-url-service/internal/app/logger"
+	"github.com/AlexCorn999/short-url-service/internal/app/memorystorage"
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/go-chi/chi"
-	bolt "go.etcd.io/bbolt"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -40,7 +42,7 @@ type URLResult struct {
 
 // APIServer ...
 type APIServer struct {
-	storage     *store.DB
+	store.Database
 	initialized bool
 	typeStore   string
 	logger      *log.Logger
@@ -71,9 +73,9 @@ func (s *APIServer) Start() error {
 	}
 
 	if s.typeStore == "database" {
-		defer s.storage.CloseDB()
+		defer s.Database.Close()
 	} else if s.typeStore == "file" {
-		defer s.storage.Store.Close()
+		defer s.Database.Close()
 	}
 
 	s.logger.Info("starting api server")
@@ -105,29 +107,28 @@ func (s *APIServer) configureLogger() error {
 func (s *APIServer) configureStore() error {
 
 	if len(strings.TrimSpace(s.config.databaseAddr)) != 0 {
-		db, err := s.storage.OpenDB(s.config.databaseAddr)
+
+		db, err := store.NewPostgres(s.config.databaseAddr)
 		if err != nil {
 			return err
 		}
-		s.storage = db
+		s.Database = db
 		s.typeStore = "database"
-
-		if err := s.storage.CheckTables(); err != nil {
-			if err := s.storage.InitTables(); err != nil {
+		if err := db.CheckTables(); err != nil {
+			if err := db.InitTables(); err != nil {
 				return err
 			}
 		}
-
 	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
-		db, err := bolt.Open(s.config.FilePath, 0666, nil)
+		db, err := filestorage.NewBoltDB(s.config.FilePath)
 		if err != nil {
 			return err
 		}
-		s.storage = store.NewDB(db)
-		s.storage.CreateBacketURL()
+		s.Database = db
 		s.typeStore = "file"
 	} else {
-		s.storage = store.NewMemoryDB()
+		db := memorystorage.NewMemoryStorage()
+		s.Database = db
 		s.typeStore = "local"
 	}
 
@@ -170,44 +171,23 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 
 	url := store.NewURL(link, string(body))
 
-	// разделение для записи БД / Файл / Память
-	if s.typeStore == "database" {
-		if result, err := s.storage.AddURL(url, idForData); err != nil {
-
-			// проверка, что ссылка уже есть в базе
-			if err.Error() == "URL already exists in the database" {
-				store.BackID(&store.IDStorage)
-				w.WriteHeader(http.StatusConflict)
-				w.Write([]byte(result))
-				return
-
-			} else {
-				fmt.Println(err)
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-
-		}
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(link))
-		return
-
-	} else if s.typeStore == "file" {
-
-		if err := s.storage.WriteURL(url, idForData); err != nil {
+	if err = s.Database.WriteURL(url, idForData); err != nil {
+		// проверка, что ссылка уже есть в базе
+		if errors.Is(err, store.ErrConfilict) {
+			store.BackID(&store.IDStorage)
+			w.WriteHeader(http.StatusConflict)
+			//тут нужно другое
+			w.Write([]byte(url.ShortURL))
+			return
+		} else {
+			fmt.Println(err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(link))
-		return
-
-	} else {
-		s.storage.MemoryDB[idForData] = string(body)
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(link))
-		return
 	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte(link))
 
 }
 
@@ -217,39 +197,17 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 
 	var url store.URL
 
-	if s.typeStore == "database" {
-		addr, err := s.storage.AddrBack(id[1:])
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Location", addr)
-		w.WriteHeader(http.StatusTemporaryRedirect)
-		return
-	} else if s.typeStore == "file" {
-		if err := s.storage.ReadURL(&url, id[1:]); err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Location", url.OriginalURL)
-		w.WriteHeader(http.StatusTemporaryRedirect)
-		return
-	} else {
-		if _, ok := s.storage.MemoryDB[id[1:]]; !ok {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		link := s.storage.MemoryDB[id[1:]]
-		w.Header().Set("Location", link)
-		w.WriteHeader(http.StatusTemporaryRedirect)
+	if err := s.Database.ReadURL(&url, id[1:]); err != nil {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-
+	w.Header().Set("Location", url.OriginalURL)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 // ShortenURL принимает JSON-объект {"url":"<some_url>"}.
 // Возвращает в ответ объект {"result":"<short_url>"}.
+
 func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -285,43 +243,30 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
 
-	if s.typeStore == "database" {
+	urlNew := store.NewURL(link, url.URL)
+	if err := s.Database.WriteURL(urlNew, idForData); err != nil {
+		// проверка, что ссылка уже есть в базе
+		if errors.Is(err, store.ErrConfilict) {
+			store.BackID(&store.IDStorage)
 
-		urlNew := store.NewURL(link, url.URL)
-		if resultt, err := s.storage.AddURL(urlNew, idForData); err != nil {
-
-			// проверка, что ссылка уже есть в базе
-			if err.Error() == "URL already exists in the database" {
-				store.BackID(&store.IDStorage)
-
-				var result shortenURL
-				result.URL = resultt
-				objectJSON, err := json.Marshal(result)
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusConflict)
-				w.Write(objectJSON)
-				return
-
-			} else {
-				fmt.Println(err)
+			var result shortenURL
+			// добавить отдачу
+			//result.URL = resultt
+			objectJSON, err := json.Marshal(result)
+			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			w.Write(objectJSON)
+			return
 
-		}
-
-	} else if s.typeStore == "file" {
-		urlNew := store.NewURL(link, url.URL)
-		if err := s.storage.WriteURL(urlNew, idForData); err != nil {
+		} else {
+			fmt.Println(err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-	} else {
-		s.storage.MemoryDB[idForData] = url.URL
 	}
 
 	// запись ссылки в структуру ответа
@@ -337,6 +282,7 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write(objectJSON)
+
 }
 
 // BatchURL принимает множество URL в формате JSON.
@@ -363,75 +309,29 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if s.typeStore == "database" {
+	for i := 0; i < len(urls); i++ {
+		// запись в хранилище
+		idForData := strconv.Itoa(store.IDStorage)
+		store.NextID(&store.IDStorage)
 
-		for i := 0; i < len(urls); i++ {
-			// запись в хранилище
-			idForData := strconv.Itoa(store.IDStorage)
-			store.NextID(&store.IDStorage)
+		hostForLink := r.Host
+		var link string
 
-			hostForLink := r.Host
-			var link string
-
-			// проверка для работы флага b
-			if s.config.ShortURLAddr != "" {
-				hostForLink = s.config.ShortURLAddr
-				link = fmt.Sprintf("%s/%s", hostForLink, idForData)
-			} else {
-				link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
-			}
-
-			urlNew := store.NewURL(link, urls[i].OriginalURL)
-
-			if _, err := s.storage.AddURL(urlNew, idForData); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			urls[i].shortURL = link
-
+		// проверка для работы флага b
+		if s.config.ShortURLAddr != "" {
+			hostForLink = s.config.ShortURLAddr
+			link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+		} else {
+			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 		}
 
-	} else if s.typeStore == "file" {
-		for i := 0; i < len(urls); i++ {
-			// запись в хранилище
-			idForData := strconv.Itoa(store.IDStorage)
-			store.NextID(&store.IDStorage)
-
-			hostForLink := r.Host
-			var link string
-
-			// проверка для работы флага b
-			if s.config.ShortURLAddr != "" {
-				hostForLink = s.config.ShortURLAddr
-				link = fmt.Sprintf("%s/%s", hostForLink, idForData)
-			} else {
-				link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
-			}
-
-			urlNew := store.NewURL(link, urls[i].OriginalURL)
-			if err := s.storage.WriteURL(urlNew, idForData); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			urls[i].shortURL = link
+		urlNew := store.NewURL(link, urls[i].OriginalURL)
+		if err := s.Database.WriteURL(urlNew, idForData); err != nil {
+			fmt.Println("тут ошибка")
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
-	} else {
-		for i := 0; i < len(urls); i++ {
-			// запись в хранилище
-			idForData := strconv.Itoa(store.IDStorage)
-			store.NextID(&store.IDStorage)
-			s.storage.MemoryDB[idForData] = urls[i].OriginalURL
-
-			hostForLink := r.Host
-			var link string
-			if s.config.ShortURLAddr != "" {
-				hostForLink = s.config.ShortURLAddr
-				link = fmt.Sprintf("%s/%s", hostForLink, idForData)
-			} else {
-				link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
-			}
-			urls[i].shortURL = link
-		}
+		urls[i].shortURL = link
 	}
 
 	// запись ссылки в структуру ответа
@@ -460,7 +360,7 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
 	// проверка на работу только с базой данных.
 	if s.typeStore == "database" {
-		if err := s.storage.CheckPing(); err != nil {
+		if err := s.Database.CheckPing(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

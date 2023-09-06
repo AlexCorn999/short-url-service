@@ -18,11 +18,11 @@ func TestStringAccept(t *testing.T) {
 	server.configureRouter()
 	server.configureStore()
 
-	if server.typeStore == "database" {
+	/*if server.typeStore == "database" {
 		defer server.storage.CloseDB()
 	} else if server.typeStore == "file" {
 		defer server.storage.Store.Close()
-	}
+	}*/
 
 	type want struct {
 		statusCode int
@@ -94,8 +94,8 @@ func TestStringAccept(t *testing.T) {
 func TestStringBack(t *testing.T) {
 	server := New(NewConfig())
 	server.configureStore()
-	server.storage.MemoryDB["1"] = "Yandex.ru"
-	server.storage.MemoryDB["2"] = "http://Skillbox.ru"
+	//server.storage.MemoryDB["1"] = "Yandex.ru"
+	//server.storage.MemoryDB["2"] = "http://Skillbox.ru"
 
 	type want struct {
 		statusCode  int
