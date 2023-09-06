@@ -44,11 +44,11 @@ func (m *MemoryStorage) ReadURL(url *store.URL, ssh string) error {
 	return nil
 }
 
-func (d *MemoryStorage) Close() error {
+func (m *MemoryStorage) Close() error {
 	return nil
 }
 
 // CheckPing проверяет подключение к базе данных.
-func (d *MemoryStorage) CheckPing() error {
+func (m *MemoryStorage) CheckPing() error {
 	return nil
 }
