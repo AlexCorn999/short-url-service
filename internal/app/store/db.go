@@ -70,32 +70,6 @@ func (d *Postgres) Close() error {
 	return d.store.Close()
 }
 
-// InitTables первичная инициализация таблицы для хранения URL.
-func (d *Postgres) InitTables() error {
-	_, err := d.store.Exec("create table url(id varchar(255) not null, shorturl varchar(255) not null unique, originalurl varchar(255) not null)")
-	return err
-}
-
-func (d *Postgres) CheckTables() error {
-	rows, err := d.store.Query("SELECT id FROM url")
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var tableName string
-		if err := rows.Scan(&tableName); err != nil {
-			return err
-		}
-
-		if tableName == "id" {
-			return nil
-		}
-	}
-	return nil
-}
-
 // WriteURL добавляет URL в базу данных.
 func (d *Postgres) WriteURL(url *URL, ssh string) error {
 	result, err := d.store.Exec("insert into url (id, shorturl, originalurl) values ($1, $2, $3) on conflict (shorturl) do nothing", ssh, url.OriginalURL, url.ShortURL)
