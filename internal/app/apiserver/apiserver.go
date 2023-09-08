@@ -2,20 +2,33 @@ package apiserver
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/AlexCorn999/short-url-service/internal/app/filestorage"
 	"github.com/AlexCorn999/short-url-service/internal/app/gzip"
 	"github.com/AlexCorn999/short-url-service/internal/app/logger"
+	"github.com/AlexCorn999/short-url-service/internal/app/memorystorage"
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/go-chi/chi"
-	bolt "go.etcd.io/bbolt"
 
 	log "github.com/sirupsen/logrus"
 )
+
+type batchURL struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+	shortURL      string
+}
+
+type resultBatchURL struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
 
 // URL для JSON объекта
 type shortenURL struct {
@@ -29,36 +42,40 @@ type URLResult struct {
 
 // APIServer ...
 type APIServer struct {
-	storage *store.DB
-	logger  *log.Logger
-	config  *Config
-	router  *chi.Mux
+	store.Database
+	initialized bool
+	typeStore   string
+	logger      *log.Logger
+	config      *Config
+	router      *chi.Mux
 }
 
 // New APIServer
 func New(config *Config) *APIServer {
-	db, err := bolt.Open(config.FilePath, 0666, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	return &APIServer{
-		config:  config,
-		logger:  log.New(),
-		router:  chi.NewRouter(),
-		storage: store.NewDB(db),
+		config:      config,
+		initialized: false,
+		logger:      log.New(),
+		router:      chi.NewRouter(),
 	}
 }
 
 // Start APIServer
 func (s *APIServer) Start() error {
 	s.configureRouter()
-	s.storage.CreateBacketURL()
-
-	defer s.storage.Store.Close()
 
 	if err := s.configureLogger(); err != nil {
 		return err
+	}
+
+	if err := s.configureStore(); err != nil {
+		return err
+	}
+
+	if s.typeStore == "database" {
+		defer s.Database.Close()
+	} else if s.typeStore == "file" {
+		defer s.Database.Close()
 	}
 
 	s.logger.Info("starting api server")
@@ -68,23 +85,49 @@ func (s *APIServer) Start() error {
 
 func (s *APIServer) configureRouter() {
 	s.router = chi.NewRouter()
-
 	s.router.Use(logger.WithLogging)
 	s.router.Use(gzip.GzipHandle)
+	s.router.Post("/api/shorten/batch", s.BatchURL)
 	s.router.Post("/api/shorten", s.ShortenURL)
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
+	s.router.Get("/ping", s.Ping)
 	s.router.NotFound(badRequest)
 }
 
 func (s *APIServer) configureLogger() error {
 	level, err := log.ParseLevel(s.config.LogLevel)
-
 	if err != nil {
 		return err
 	}
-
 	s.logger.SetLevel(level)
+	return nil
+}
+
+func (s *APIServer) configureStore() error {
+
+	if len(strings.TrimSpace(s.config.databaseAddr)) != 0 {
+
+		db, err := store.NewPostgres(s.config.databaseAddr)
+		if err != nil {
+			return err
+		}
+		s.Database = db
+		s.typeStore = "database"
+
+	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
+		db, err := filestorage.NewBoltDB(s.config.FilePath)
+		if err != nil {
+			return err
+		}
+		s.Database = db
+		s.typeStore = "file"
+	} else {
+		db := memorystorage.NewMemoryStorage()
+		s.Database = db
+		s.typeStore = "local"
+	}
+
 	return nil
 }
 
@@ -123,9 +166,29 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	}
 
 	url := store.NewURL(link, string(body))
-	s.storage.WriteURL(url, idForData)
+
+	if err = s.Database.WriteURL(url, &idForData); err != nil {
+		// проверка, что ссылка уже есть в базе
+		if errors.Is(err, store.ErrConfilict) {
+
+			res, err := s.Database.Conflict(url)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(res))
+			return
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(link))
+
 }
 
 // StringBack принимает id и возвращает ссылку
@@ -134,14 +197,17 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 
 	var url store.URL
 
-	s.storage.ReadURL(&url, id[1:])
-
+	if err := s.Database.ReadURL(&url, id[1:]); err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 	w.Header().Set("Location", url.OriginalURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 // ShortenURL принимает JSON-объект {"url":"<some_url>"}.
 // Возвращает в ответ объект {"result":"<short_url>"}.
+
 func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -178,9 +244,28 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	urlNew := store.NewURL(link, url.URL)
-	if err := s.storage.WriteURL(urlNew, idForData); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	if err := s.Database.WriteURL(urlNew, &idForData); err != nil {
+		// проверка, что ссылка уже есть в базе
+		if errors.Is(err, store.ErrConfilict) {
+
+			var result shortenURL
+			// добавить отдачу
+			//result.URL = resultt
+			objectJSON, err := json.Marshal(result)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			w.Write(objectJSON)
+			return
+
+		} else {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 	}
 
 	// запись ссылки в структуру ответа
@@ -196,4 +281,90 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write(objectJSON)
+
+}
+
+// BatchURL принимает множество URL в формате JSON.
+// Возвращает в ответ множество объектов JSON.
+func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var urls []batchURL
+
+	if err := json.Unmarshal(body, &urls); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// проверка на пустую ссылку
+	for _, url := range urls {
+		if len(strings.TrimSpace(url.OriginalURL)) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	for i := 0; i < len(urls); i++ {
+		// запись в хранилище
+		idForData := strconv.Itoa(store.IDStorage)
+		store.NextID(&store.IDStorage)
+
+		hostForLink := r.Host
+		var link string
+
+		urlNew := store.NewURL(link, urls[i].OriginalURL)
+		if err := s.Database.WriteURL(urlNew, &idForData); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// проверка для работы флага b
+		if s.config.ShortURLAddr != "" {
+			hostForLink = s.config.ShortURLAddr
+			link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+		} else {
+			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+		}
+
+		urls[i].shortURL = link
+	}
+
+	// запись ссылки в структуру ответа
+	var result []resultBatchURL
+
+	for _, url := range urls {
+		res := resultBatchURL{
+			CorrelationID: url.CorrelationID,
+			ShortURL:      url.shortURL,
+		}
+		result = append(result, res)
+	}
+
+	objectJSON, err := json.Marshal(result)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	w.Write(objectJSON)
+}
+
+// Ping проверяет соединение с базой данных.
+func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
+	// проверка на работу только с базой данных.
+	if s.typeStore == "database" {
+		if err := s.Database.CheckPing(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+	}
 }

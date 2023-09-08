@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/AlexCorn999/short-url-service/internal/app/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,9 +17,13 @@ func TestStringAccept(t *testing.T) {
 	config.ParseFlags()
 	server := New(config)
 	server.configureRouter()
-	server.storage.CreateBacketURL()
+	server.configureStore()
 
-	defer server.storage.Store.Close()
+	if server.typeStore == "database" {
+		defer server.Database.Close()
+	} else if server.typeStore == "file" {
+		defer server.Database.Close()
+	}
 
 	type want struct {
 		statusCode int
@@ -89,6 +94,16 @@ func TestStringAccept(t *testing.T) {
 
 func TestStringBack(t *testing.T) {
 	server := New(NewConfig())
+	server.configureStore()
+
+	var url1 store.URL
+	var url2 store.URL
+	url1.OriginalURL = "Yandex.ru"
+	url2.OriginalURL = "http://Skillbox.ru"
+	id1 := "1"
+	id2 := "2"
+	server.Database.WriteURL(&url1, &id1)
+	server.Database.WriteURL(&url2, &id2)
 
 	type want struct {
 		statusCode  int
