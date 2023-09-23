@@ -403,7 +403,7 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 		if !authForFlag {
 			c, err := r.Cookie("token")
 			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 			tknStr = c.Value
@@ -413,7 +413,7 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 
 		creator, err := auth.GetUserID(tknStr)
 		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
