@@ -494,11 +494,14 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.logger.Info("Узнаем у юзера ", creator)
+
 	result, err := s.Database.GetAllURL(creator)
 	if err != nil {
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	s.logger.Info("вот содержимое ", result)
 
 	type resultURL struct {
 		ShortURL    string `json:"short_url"`
@@ -526,6 +529,7 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	objectJSON, err := json.Marshal(resultForJSON)
 	if err != nil {
+		s.logger.Info("ошибка тут ", result)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
