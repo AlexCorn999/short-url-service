@@ -482,6 +482,7 @@ func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("token")
 	if err != nil {
+		s.logger.Info("ошибка тут c, err := r.Cookie()")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -489,6 +490,7 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	creator, err := auth.GetUserID(tknStr)
 	if err != nil {
+		s.logger.Info("ошибка тут c creator, err := auth.GetUserID()")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -560,11 +562,13 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 			if err == http.ErrNoCookie {
 				token, err = auth.BuildJWTString()
 				if err != nil {
+					s.logger.Info("ошибка тут c if err == http.ErrNoCookie)")
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
 				tokenFlag = true
 			} else {
+				s.logger.Info("ошибка тут c if err == http.ErrNo)")
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
