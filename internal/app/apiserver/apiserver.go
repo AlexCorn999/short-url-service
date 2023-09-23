@@ -23,6 +23,7 @@ import (
 var (
 	authForFlag = false
 	authString  string
+	tknStr      string
 )
 
 type batchURL struct {
@@ -174,7 +175,6 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// для авторизации
-	var tknStr string
 	if !authForFlag {
 		c, err := r.Cookie("token")
 		if err != nil {
@@ -188,7 +188,7 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 
 	creator, err := auth.GetUserID(tknStr)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
