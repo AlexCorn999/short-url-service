@@ -507,8 +507,8 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 	resultForJSON := make([]resultURL, len(result))
 
 	for i := 0; i < len(result); i++ {
-		resultForJSON[i].OriginalURL = result[i].OriginalURL
-		resultForJSON[i].ShortURL = result[i].ShortURL
+		resultForJSON[i].OriginalURL = result[i].ShortURL
+		resultForJSON[i].ShortURL = result[i].OriginalURL
 	}
 
 	if len(resultForJSON) == 0 {

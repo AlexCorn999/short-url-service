@@ -7,11 +7,6 @@ import (
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 )
 
-type keyForMemory struct {
-	id     string
-	userID string
-}
-
 // MemoryStorage реализует хранение в мапе.
 type MemoryStorage struct {
 	store map[string]string
@@ -63,10 +58,6 @@ func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
 		}
 	}
 
-	for i := 0; i < len(userURL); i++ {
-		res := fmt.Sprintf("http://%s", userURL[i].ShortURL)
-		userURL[i].ShortURL = res
-	}
 	return userURL, nil
 }
 

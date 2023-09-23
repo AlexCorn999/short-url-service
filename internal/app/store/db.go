@@ -181,11 +181,6 @@ func (d *Postgres) GetAllURL(id int) ([]URL, error) {
 		return nil, err
 	}
 
-	for i := 0; i < len(urls); i++ {
-		res := fmt.Sprintf("http://%s", urls[i].ShortURL)
-		urls[i].ShortURL = res
-	}
-
 	return urls, nil
 }
 
