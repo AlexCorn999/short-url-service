@@ -78,3 +78,7 @@ func (m *MemoryStorage) CheckPing() error {
 func (m *MemoryStorage) Conflict(url *store.URL) (string, error) {
 	return "", nil
 }
+
+func (m *MemoryStorage) InitID() (int, error) {
+	return -1, nil
+}

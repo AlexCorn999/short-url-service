@@ -37,6 +37,7 @@ type Database interface {
 	GetAllURL(id int) ([]URL, error)
 	Conflict(url *URL) (string, error)
 	Close() error
+	InitID() (int, error)
 	CheckPing() error
 }
 
@@ -187,4 +188,14 @@ func (d *Postgres) GetAllURL(id int) ([]URL, error) {
 // CheckPing проверяет подключение к базе данных.
 func (d *Postgres) CheckPing() error {
 	return d.store.Ping()
+}
+
+// InitID первичная инициализация.
+func (d *Postgres) InitID() (int, error) {
+	var maxID int
+	err := d.store.QueryRow("select MAX(user_id) from url").Scan(&maxID)
+	if err != nil {
+		return -1, err
+	}
+	return maxID, nil
 }

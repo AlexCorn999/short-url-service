@@ -123,6 +123,10 @@ func (s *APIServer) configureStore() error {
 		}
 		s.Database = db
 		s.typeStore = "database"
+		auth.ID, err = s.Database.InitID()
+		if err != nil {
+			return err
+		}
 
 	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		db, err := filestorage.NewBoltDB(s.config.FilePath)
@@ -564,22 +568,6 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 		} else {
 			tknStr = token
 		}
-
-		// id, err := auth.GetUserID(tknStr)
-		// if err != nil {
-		// 	if errors.Is(err, auth.ErrToken) && !tokenFlag {
-		// 		token, err = auth.BuildJWTString()
-		// 		if err != nil {
-		// 			w.WriteHeader(http.StatusBadRequest)
-		// 			return
-		// 		}
-		// 		tokenFlag = true
-		// 	} else {
-		// 		w.WriteHeader(http.StatusBadRequest)
-		// 		return
-		// 	}
-
-		// }
 
 		if tokenFlag {
 			authForFlag = true

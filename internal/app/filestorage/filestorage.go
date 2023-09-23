@@ -107,3 +107,7 @@ func (d *BoltDB) Conflict(url *store.URL) (string, error) {
 func (d *BoltDB) RewriteURL(url *store.URL) error {
 	return nil
 }
+
+func (d *BoltDB) InitID() (int, error) {
+	return -1, nil
+}
