@@ -195,7 +195,7 @@ func (d *Postgres) InitID() (int, error) {
 	var maxID int
 	err := d.store.QueryRow("select MAX(user_id) from url").Scan(&maxID)
 	if err != nil {
-		return -1, err
+		maxID = 1
 	}
 	return maxID, nil
 }
