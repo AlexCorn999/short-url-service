@@ -540,6 +540,16 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 		tokenFlag := false
 		var token string
 
+		if s.typeStore == "database" {
+			// переписываем значение из базы для user_id
+			newIDForDB, err := s.Database.InitID()
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			auth.ID = newIDForDB + 1
+		}
+
 		// проверка на cуществование cookie
 		c, err := r.Cookie("token")
 		if err != nil {
