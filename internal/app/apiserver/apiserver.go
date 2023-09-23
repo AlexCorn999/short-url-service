@@ -335,7 +335,7 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		} else {
 			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 		}
-		urlResult := store.NewURL(link, string(body), creator)
+		urlResult := store.NewURL(link, url.URL, creator)
 		// тут нужно перезаписать значения в базе
 		if err := s.Database.RewriteURL(urlResult); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
