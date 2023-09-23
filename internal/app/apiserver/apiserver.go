@@ -123,7 +123,9 @@ func (s *APIServer) configureStore() error {
 		}
 		s.Database = db
 		s.typeStore = "database"
+		// переписываем значение из базы для user_id
 		auth.ID, err = s.Database.InitID()
+		auth.ID++
 		if err != nil {
 			return err
 		}
