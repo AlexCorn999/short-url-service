@@ -419,7 +419,7 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 
 		urlNew := store.NewURL(link, urls[i].OriginalURL, creator)
 		if err := s.Database.WriteURL(urlNew, creator, &idForData); err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -455,7 +455,7 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 
 	objectJSON, err := json.Marshal(result)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -489,12 +489,12 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 			if err == http.ErrNoCookie {
 				token, err = auth.BuildJWTString()
 				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
+					w.WriteHeader(http.StatusUnauthorized)
 					return
 				}
 				tokenFlag = true
 			} else {
-				w.WriteHeader(http.StatusBadRequest)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
