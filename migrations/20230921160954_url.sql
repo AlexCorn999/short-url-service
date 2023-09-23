@@ -7,7 +7,7 @@ CREATE TABLE
         id SERIAL PRIMARY KEY,
         shorturl VARCHAR(255) NOT NULL UNIQUE,
         originalurl VARCHAR(255) NOT NULL,
-        user_id integer REFERENCES users (id)
+        user_id integer NOT NULL
     );
 
 -- +goose StatementEnd

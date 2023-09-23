@@ -443,7 +443,7 @@ func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenFlag := false
-		var token, tknStr string
+		var token string
 
 		// проверка на cуществование cookie
 		c, err := r.Cookie("token")
@@ -468,21 +468,21 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 			tknStr = token
 		}
 
-		id, err := auth.GetUserID(tknStr)
-		if err != nil {
-			if errors.Is(err, auth.ErrToken) && !tokenFlag {
-				token, err = auth.BuildJWTString()
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				tokenFlag = true
-			} else {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+		// id, err := auth.GetUserID(tknStr)
+		// if err != nil {
+		// 	if errors.Is(err, auth.ErrToken) && !tokenFlag {
+		// 		token, err = auth.BuildJWTString()
+		// 		if err != nil {
+		// 			w.WriteHeader(http.StatusBadRequest)
+		// 			return
+		// 		}
+		// 		tokenFlag = true
+		// 	} else {
+		// 		w.WriteHeader(http.StatusBadRequest)
+		// 		return
+		// 	}
 
-		}
+		// }
 
 		if tokenFlag {
 			authForFlag = true
@@ -492,22 +492,6 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 				Value: token,
 			})
 
-		}
-
-		if s.typeStore == "database" {
-			if tokenFlag {
-				err = s.Database.GetUser(id)
-				if err != nil {
-					w.WriteHeader(http.StatusUnauthorized)
-					return
-				}
-			}
-
-			if tokenFlag {
-				s.Database.Create(id)
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
 		}
 
 		next.ServeHTTP(w, r)

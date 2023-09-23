@@ -82,14 +82,6 @@ func (d *BoltDB) Conflict(url *store.URL) (string, error) {
 	return "", nil
 }
 
-func (d *BoltDB) Create(id int) (int, error) {
-	return 0, nil
-}
-
-func (d *BoltDB) GetUser(userID int) error {
-	return nil
-}
-
 func (d *BoltDB) RewriteURL(url *store.URL) error {
 	return nil
 }

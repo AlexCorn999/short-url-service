@@ -34,8 +34,6 @@ type Database interface {
 	WriteURL(url *URL, id int, ssh *string) error
 	RewriteURL(url *URL) error
 	ReadURL(url *URL, ssh string) error
-	Create(id int) (int, error)
-	GetUser(userID int) error
 	Conflict(url *URL) (string, error)
 	Close() error
 	CheckPing() error
@@ -79,7 +77,7 @@ func (d *Postgres) Close() error {
 // WriteURL добавляет URL в базу данных.
 func (d *Postgres) WriteURL(url *URL, id int, ssh *string) error {
 
-	result, err := d.store.Exec("insert into url (shorturl, originalurl, user_id) values ($1, $2, $3) on conflict (shorturl) do nothing", url.OriginalURL, url.ShortURL, id)
+	result, err := d.store.Exec("insert into url (shorturl, originalurl, user_id) values ($1, $2, $3) on conflict (shorturl) do nothing", url.OriginalURL, url.ShortURL, url.Creator)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -163,28 +161,4 @@ func (d *Postgres) ReadURL(url *URL, ssh string) error {
 // CheckPing проверяет подключение к базе данных.
 func (d *Postgres) CheckPing() error {
 	return d.store.Ping()
-}
-
-// Create добавляет пользователя в базу данных.
-func (d *Postgres) Create(id int) (int, error) {
-	var userID int
-	if err := d.store.QueryRow(
-		"INSERT INTO users (id) values ($1) RETURNING id",
-		id,
-	).Scan(&userID); err != nil {
-		return -1, err
-	}
-	return userID, nil
-}
-
-// GetUser проверяет пользователя в базе.
-func (d *Postgres) GetUser(userID int) error {
-	var userNewID int
-	if err := d.store.QueryRow(
-		"SELECT * FROM users WHERE id = $1",
-		userID,
-	).Scan(&userNewID); err != nil {
-		return errors.New("user not found")
-	}
-	return nil
 }
