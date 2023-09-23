@@ -17,19 +17,19 @@ var (
 	ErrToken = errors.New("token is not valid")
 )
 
-const TOKEN_EXP = time.Hour * 3
-const SECRET_KEY = "yandex"
+const tokenExp = time.Hour * 3
+const secretKey = "yandex"
 
 // BuildJWTString создает токен
 func BuildJWTString() (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_EXP)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExp)),
 		},
 		UserID: ID,
 	})
 
-	tokenString, err := token.SignedString([]byte(SECRET_KEY))
+	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		return "", err
 	}
@@ -42,7 +42,7 @@ func BuildJWTString() (string, error) {
 func GetUserID(tokenString string) (int, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
-		return []byte(SECRET_KEY), nil
+		return []byte(secretKey), nil
 	})
 	if err != nil {
 		return -1, errors.New("something wrong")

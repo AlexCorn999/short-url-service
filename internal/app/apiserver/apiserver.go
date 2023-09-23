@@ -20,6 +20,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var (
+	authForFlag = false
+	authString  string
+)
+
 type batchURL struct {
 	CorrelationID string `json:"correlation_id"`
 	OriginalURL   string `json:"original_url"`
@@ -171,13 +176,18 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	url := store.NewURL(link, string(body))
 
 	// для авторизации
-	c, err := r.Cookie("token")
-	if err != nil {
-		fmt.Println("Ошибка туттт")
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	var tknStr string
+	if !authForFlag {
+		c, err := r.Cookie("token")
+		if err != nil {
+			fmt.Println("Ошибка туттт")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		tknStr = c.Value
+	} else {
+		tknStr = authString
 	}
-	tknStr := c.Value
 
 	id, err := auth.GetUserID(tknStr)
 	if err != nil {
@@ -484,6 +494,8 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 		}
 
 		if tokenFlag {
+			authForFlag = true
+			authString = token
 			http.SetCookie(w, &http.Cookie{
 				Name:  "token",
 				Value: token,
