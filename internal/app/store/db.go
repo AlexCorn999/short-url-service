@@ -82,14 +82,14 @@ func (d *Postgres) WriteURL(url *URL, id int, ssh *string) error {
 		return err
 	}
 
-	_, err = result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
 
-	//if rowsAffected == 0 {
-	//	return ErrConfilict
-	//}
+	if rowsAffected == 0 {
+		return ErrConfilict
+	}
 
 	err = d.store.QueryRow("SELECT id FROM url WHERE shorturl = $1", url.OriginalURL).Scan(ssh)
 	if err != nil {
@@ -107,14 +107,14 @@ func (d *Postgres) RewriteURL(url *URL) error {
 		return err
 	}
 
-	_, err = result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
 
-	// if rowsAffected == 0 {
-	// 	return ErrConfilict
-	// }
+	if rowsAffected == 0 {
+		return ErrConfilict
+	}
 
 	return nil
 }
@@ -141,7 +141,7 @@ func (d *Postgres) Conflict(url *URL) (string, error) {
 
 // ReadURL возвращает адрес по ключу из БД.
 func (d *Postgres) ReadURL(url *URL, ssh string) error {
-	row := d.store.QueryRow("select shorturl from url where id = $1 and user_id = $2", ssh, 0)
+	row := d.store.QueryRow("select shorturl from url where id = $1", ssh)
 
 	var link string
 
