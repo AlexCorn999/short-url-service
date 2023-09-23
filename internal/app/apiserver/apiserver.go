@@ -180,7 +180,6 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	if !authForFlag {
 		c, err := r.Cookie("token")
 		if err != nil {
-			fmt.Println("Ошибка туттт")
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -242,12 +241,18 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 	var url store.URL
 
 	// для авторизации
-	c, err := r.Cookie("token")
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	var tknStr string
+	if !authForFlag {
+		c, err := r.Cookie("token")
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		tknStr = c.Value
+	} else {
+		tknStr = authString
 	}
-	tknStr := c.Value
+
 	idForAuth, err := auth.GetUserID(tknStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
