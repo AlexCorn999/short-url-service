@@ -80,6 +80,13 @@ func (s *APIServer) Start() error {
 	}
 
 	if s.typeStore == "database" {
+		// переписываем значение из базы для user_id
+		newIDForDB, err := s.Database.InitID()
+		if err != nil {
+			return err
+		}
+		auth.ID = newIDForDB + 1
+
 		defer s.Database.Close()
 	} else if s.typeStore == "file" {
 		defer s.Database.Close()
@@ -123,12 +130,6 @@ func (s *APIServer) configureStore() error {
 		}
 		s.Database = db
 		s.typeStore = "database"
-		// переписываем значение из базы для user_id
-		auth.ID, err = s.Database.InitID()
-		auth.ID++
-		if err != nil {
-			return err
-		}
 
 	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		db, err := filestorage.NewBoltDB(s.config.FilePath)
