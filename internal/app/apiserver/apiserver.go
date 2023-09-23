@@ -483,27 +483,22 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("token")
 	if err != nil {
 		s.logger.Info("ошибка тут c, err := r.Cookie()")
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	tknStr = c.Value
 
 	creator, err := auth.GetUserID(tknStr)
 	if err != nil {
-		s.logger.Info("ошибка тут c creator, err := auth.GetUserID()")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	s.logger.Info("Узнаем у юзера ", creator)
 
 	result, err := s.Database.GetAllURL(creator)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	s.logger.Info("вот содержимое ", result)
 
 	type resultURL struct {
 		ShortURL    string `json:"short_url"`
@@ -531,7 +526,6 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	objectJSON, err := json.Marshal(resultForJSON)
 	if err != nil {
-		s.logger.Info("ошибка тут ", result)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -562,13 +556,11 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 			if err == http.ErrNoCookie {
 				token, err = auth.BuildJWTString()
 				if err != nil {
-					s.logger.Info("ошибка тут c if err == http.ErrNoCookie)")
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
 				tokenFlag = true
 			} else {
-				s.logger.Info("ошибка тут c if err == http.ErrNo)")
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
