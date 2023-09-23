@@ -327,6 +327,22 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// проверка для работы флага b БД
+	if s.typeStore == "database" {
+		if s.config.ShortURLAddr != "" {
+			hostForLink = s.config.ShortURLAddr
+			link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+		} else {
+			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+		}
+		urlResult := store.NewURL(link, string(body), creator)
+		// тут нужно перезаписать значения в базе
+		if err := s.Database.RewriteURL(urlResult); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
 	// запись ссылки в структуру ответа
 	var result URLResult
 	result.ResultURL = link
@@ -405,6 +421,22 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 		if err := s.Database.WriteURL(urlNew, creator, &idForData); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
+		}
+
+		// проверка для работы флага b БД
+		if s.typeStore == "database" {
+			if s.config.ShortURLAddr != "" {
+				hostForLink = s.config.ShortURLAddr
+				link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+			} else {
+				link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+			}
+			urlResult := store.NewURL(link, string(body), creator)
+			// тут нужно перезаписать значения в базе
+			if err := s.Database.RewriteURL(urlResult); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 		}
 
 		urls[i].shortURL = link
