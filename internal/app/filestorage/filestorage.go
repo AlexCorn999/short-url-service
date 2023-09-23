@@ -86,7 +86,7 @@ func (d *BoltDB) Create(id int) (int, error) {
 	return 0, nil
 }
 
-func (d *BoltDB) GetUser(user_id int) error {
+func (d *BoltDB) GetUser(userID int) error {
 	return nil
 }
 

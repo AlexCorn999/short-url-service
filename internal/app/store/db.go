@@ -33,7 +33,7 @@ type Database interface {
 	RewriteURL(url *URL) error
 	ReadURL(url *URL, id int, ssh string) error
 	Create(id int) (int, error)
-	GetUser(user_id int) error
+	GetUser(userID int) error
 	Conflict(url *URL) (string, error)
 	Close() error
 	CheckPing() error
@@ -176,12 +176,12 @@ func (d *Postgres) Create(id int) (int, error) {
 }
 
 // GetUser проверяет пользователя в базе.
-func (d *Postgres) GetUser(user_id int) error {
-	var userID int
+func (d *Postgres) GetUser(userID int) error {
+	var userNewID int
 	if err := d.store.QueryRow(
 		"SELECT * FROM users WHERE id = $1",
-		user_id,
-	).Scan(&userID); err != nil {
+		userID,
+	).Scan(&userNewID); err != nil {
 		return errors.New("user not found")
 	}
 	return nil

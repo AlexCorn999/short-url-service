@@ -84,6 +84,6 @@ func (m *MemoryStorage) Create(id int) (int, error) {
 	return 0, nil
 }
 
-func (m *MemoryStorage) GetUser(user_id int) error {
+func (m *MemoryStorage) GetUser(userID int) error {
 	return nil
 }

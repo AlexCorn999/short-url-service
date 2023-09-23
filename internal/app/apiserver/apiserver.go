@@ -173,10 +173,12 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 	// для авторизации
 	c, err := r.Cookie("token")
 	if err != nil {
+		fmt.Println("Ошибка туттт")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	tknStr := c.Value
+
 	id, err := auth.GetUserID(tknStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -486,20 +488,23 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 				Name:  "token",
 				Value: token,
 			})
+
 		}
 
-		if !tokenFlag {
-			err = s.Database.GetUser(id)
-			if err != nil {
+		if s.typeStore == "database" {
+			if tokenFlag {
+				err = s.Database.GetUser(id)
+				if err != nil {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+			}
+
+			if tokenFlag {
+				s.Database.Create(id)
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
-		}
-
-		if tokenFlag {
-			s.Database.Create(id)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
 		}
 
 		next.ServeHTTP(w, r)
