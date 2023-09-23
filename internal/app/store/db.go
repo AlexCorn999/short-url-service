@@ -79,18 +79,17 @@ func (d *Postgres) WriteURL(url *URL, id int, ssh *string) error {
 
 	result, err := d.store.Exec("insert into url (shorturl, originalurl, user_id) values ($1, $2, $3) on conflict (shorturl) do nothing", url.OriginalURL, url.ShortURL, url.Creator)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
-	rowsAffected, err := result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
 		return err
 	}
 
-	if rowsAffected == 0 {
-		return ErrConfilict
-	}
+	//if rowsAffected == 0 {
+	//	return ErrConfilict
+	//}
 
 	err = d.store.QueryRow("SELECT id FROM url WHERE shorturl = $1", url.OriginalURL).Scan(ssh)
 	if err != nil {
@@ -108,14 +107,14 @@ func (d *Postgres) RewriteURL(url *URL) error {
 		return err
 	}
 
-	rowsAffected, err := result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
 		return err
 	}
 
-	if rowsAffected == 0 {
-		return ErrConfilict
-	}
+	// if rowsAffected == 0 {
+	// 	return ErrConfilict
+	// }
 
 	return nil
 }
