@@ -192,6 +192,8 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.logger.Info("Юзер ", creator, " ссылка ", string(body))
+
 	url := store.NewURL(link, string(body), creator)
 	if err = s.Database.WriteURL(url, creator, &idForData); err != nil {
 		// проверка, что ссылка уже есть в базе
@@ -489,11 +491,11 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	creator, err := auth.GetUserID(tknStr)
 	if err != nil {
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	fmt.Println(creator)
+	s.logger.Info("Узнаем у юзера ", creator)
 	result, err := s.Database.GetAllURL(creator)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
