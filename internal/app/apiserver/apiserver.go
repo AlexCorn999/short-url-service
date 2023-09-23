@@ -511,6 +511,11 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 		resultForJSON[i].ShortURL = result[i].ShortURL
 	}
 
+	if len(resultForJSON) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	objectJSON, err := json.Marshal(resultForJSON)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
