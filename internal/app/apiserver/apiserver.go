@@ -199,8 +199,6 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.logger.Info("Юзер ", creator, " ссылка ", string(body))
-
 	url := store.NewURL(link, string(body), creator)
 	if err = s.Database.WriteURL(url, creator, &idForData); err != nil {
 		// проверка, что ссылка уже есть в базе
