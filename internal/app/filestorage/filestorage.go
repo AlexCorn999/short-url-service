@@ -40,7 +40,7 @@ func NewBoltDB(filePath string) (*BoltDB, error) {
 }
 
 // WriteURL записывает url по ключу
-func (d *BoltDB) WriteURL(url *store.URL, ssh *string) error {
+func (d *BoltDB) WriteURL(url *store.URL, id int, ssh *string) error {
 	data, err := json.Marshal(url)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (d *BoltDB) WriteURL(url *store.URL, ssh *string) error {
 }
 
 // ReadURL вычитывает url по ключу.
-func (d *BoltDB) ReadURL(url *store.URL, ssh string) error {
+func (d *BoltDB) ReadURL(url *store.URL, id int, ssh string) error {
 	var v []byte
 	d.Store.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("URLBucket"))
@@ -80,4 +80,16 @@ func (d *BoltDB) CheckPing() error {
 
 func (d *BoltDB) Conflict(url *store.URL) (string, error) {
 	return "", nil
+}
+
+func (d *BoltDB) Create(id int) (int, error) {
+	return 0, nil
+}
+
+func (d *BoltDB) GetUser(user_id int) error {
+	return nil
+}
+
+func (d *BoltDB) RewriteURL(url *store.URL) error {
+	return nil
 }

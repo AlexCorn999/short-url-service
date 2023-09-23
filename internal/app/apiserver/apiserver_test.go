@@ -102,8 +102,8 @@ func TestStringBack(t *testing.T) {
 	url2.OriginalURL = "http://Skillbox.ru"
 	id1 := "1"
 	id2 := "2"
-	server.Database.WriteURL(&url1, &id1)
-	server.Database.WriteURL(&url2, &id2)
+	server.Database.WriteURL(&url1, 0, &id1)
+	server.Database.WriteURL(&url2, 0, &id2)
 
 	type want struct {
 		statusCode  int
