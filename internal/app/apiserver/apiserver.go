@@ -100,7 +100,7 @@ func (s *APIServer) configureRouter() {
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
 	s.router.Get("/ping", s.Ping)
-	//s.router.Get("/api/user/urls", s.GetAllUrl)
+	s.router.Get("/api/user/urls", s.GetAllUrl)
 	s.router.NotFound(badRequest)
 }
 
@@ -476,6 +476,49 @@ func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+// GetAllUrl возвращает пользователю все сокращенные им url.
+func (s *APIServer) GetAllUrl(w http.ResponseWriter, r *http.Request) {
+	c, err := r.Cookie("token")
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	tknStr = c.Value
+
+	creator, err := auth.GetUserID(tknStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	result, err := s.Database.GetAllURL(creator)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	type resultURL struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+
+	resultForJSON := make([]resultURL, len(result))
+
+	for i := 0; i < len(result); i++ {
+		resultForJSON[i].OriginalURL = result[i].OriginalURL
+		resultForJSON[i].ShortURL = result[i].ShortURL
+	}
+
+	objectJSON, err := json.Marshal(resultForJSON)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(objectJSON)
 }
 
 func (s *APIServer) Auth(next http.Handler) http.Handler {

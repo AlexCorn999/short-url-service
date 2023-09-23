@@ -34,6 +34,7 @@ type Database interface {
 	WriteURL(url *URL, id int, ssh *string) error
 	RewriteURL(url *URL) error
 	ReadURL(url *URL, ssh string) error
+	GetAllURL(id int) ([]URL, error)
 	Conflict(url *URL) (string, error)
 	Close() error
 	CheckPing() error
@@ -155,6 +156,31 @@ func (d *Postgres) ReadURL(url *URL, ssh string) error {
 
 	url.OriginalURL = link
 	return nil
+}
+
+func (d *Postgres) GetAllURL(id int) ([]URL, error) {
+	var urls []URL
+	rows, err := d.store.Query("SELECT shorturl, originalurl FROM url WHERE user_id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var u URL
+		err := rows.Scan(&u.ShortURL, &u.OriginalURL)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		urls = append(urls, u)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	return urls, nil
 }
 
 // CheckPing проверяет подключение к базе данных.

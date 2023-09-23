@@ -50,6 +50,10 @@ func (m *MemoryStorage) ReadURL(url *store.URL, ssh string) error {
 	return nil
 }
 
+func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
+	return nil, nil
+}
+
 // RewriteURL добавляет URL в базу данных.
 func (m *MemoryStorage) RewriteURL(url *store.URL) error {
 	return nil

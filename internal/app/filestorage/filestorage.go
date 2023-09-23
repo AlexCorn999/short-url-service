@@ -69,6 +69,10 @@ func (d *BoltDB) ReadURL(url *store.URL, ssh string) error {
 	return nil
 }
 
+func (d *BoltDB) GetAllURL(id int) ([]store.URL, error) {
+	return nil, nil
+}
+
 func (d *BoltDB) Close() error {
 	return d.Store.Close()
 }
