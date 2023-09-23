@@ -489,14 +489,14 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	creator, err := auth.GetUserID(tknStr)
 	if err != nil {
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	s.logger.Info("Узнаем у юзера ", creator)
 	result, err := s.Database.GetAllURL(creator)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
