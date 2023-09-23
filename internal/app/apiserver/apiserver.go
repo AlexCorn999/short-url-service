@@ -80,13 +80,6 @@ func (s *APIServer) Start() error {
 	}
 
 	if s.typeStore == "database" {
-		// переписываем значение из базы для user_id
-		newIDForDB, err := s.Database.InitID()
-		if err != nil {
-			return err
-		}
-		auth.ID = newIDForDB + 1
-
 		defer s.Database.Close()
 	} else if s.typeStore == "file" {
 		defer s.Database.Close()
