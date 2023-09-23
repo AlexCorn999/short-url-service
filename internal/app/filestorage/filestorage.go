@@ -88,6 +88,11 @@ func (d *BoltDB) GetAllURL(id int) ([]store.URL, error) {
 		return nil
 	})
 
+	for i := 0; i < len(userURL); i++ {
+		res := fmt.Sprintf("http://%s", userURL[i].ShortURL)
+		userURL[i].ShortURL = res
+	}
+
 	return userURL, nil
 }
 

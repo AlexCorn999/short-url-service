@@ -62,6 +62,11 @@ func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
 			userURL = append(userURL, url)
 		}
 	}
+
+	for i := 0; i < len(userURL); i++ {
+		res := fmt.Sprintf("http://%s", userURL[i].ShortURL)
+		userURL[i].ShortURL = res
+	}
 	return userURL, nil
 }
 
