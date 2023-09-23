@@ -100,7 +100,7 @@ func (s *APIServer) configureRouter() {
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
 	s.router.Get("/ping", s.Ping)
-	s.router.Get("/api/user/urls", s.GetAllUrl)
+	s.router.Get("/api/user/urls", s.GetAllURL)
 	s.router.NotFound(badRequest)
 }
 
@@ -478,8 +478,8 @@ func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetAllUrl возвращает пользователю все сокращенные им url.
-func (s *APIServer) GetAllUrl(w http.ResponseWriter, r *http.Request) {
+// GetAllURL возвращает пользователю все сокращенные им url.
+func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("token")
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)

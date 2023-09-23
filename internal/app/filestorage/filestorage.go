@@ -70,7 +70,25 @@ func (d *BoltDB) ReadURL(url *store.URL, ssh string) error {
 }
 
 func (d *BoltDB) GetAllURL(id int) ([]store.URL, error) {
-	return nil, nil
+	var userURL []store.URL
+
+	d.Store.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("URLBucket"))
+		c := b.Cursor()
+		for k, value := c.First(); k != nil; k, value = c.Next() {
+			var url store.URL
+			if err := json.Unmarshal([]byte(value), &url); err != nil {
+				return err
+			}
+			if url.Creator == id {
+				userURL = append(userURL, url)
+			}
+
+		}
+		return nil
+	})
+
+	return userURL, nil
 }
 
 func (d *BoltDB) Close() error {

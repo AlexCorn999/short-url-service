@@ -51,7 +51,18 @@ func (m *MemoryStorage) ReadURL(url *store.URL, ssh string) error {
 }
 
 func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
-	return nil, nil
+	var userURL []store.URL
+
+	for _, value := range m.store {
+		var url store.URL
+		if err := json.Unmarshal([]byte(value), &url); err != nil {
+			return nil, err
+		}
+		if url.Creator == id {
+			userURL = append(userURL, url)
+		}
+	}
+	return userURL, nil
 }
 
 // RewriteURL добавляет URL в базу данных.
