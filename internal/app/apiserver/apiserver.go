@@ -509,7 +509,7 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	resultForJSON := make([]resultURL, len(result))
 
-	if s.typeStore != "file" {
+	if s.typeStore == "database" {
 		for i := 0; i < len(result); i++ {
 			resultForJSON[i].OriginalURL = result[i].ShortURL
 			resultForJSON[i].ShortURL = result[i].OriginalURL
