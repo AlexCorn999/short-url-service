@@ -188,7 +188,7 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 
 	creator, err := auth.GetUserID(tknStr)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -375,30 +375,36 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 		hostForLink := r.Host
 		var link string
 
-		// для авторизации
-		c, err := r.Cookie("token")
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		tknStr := c.Value
-		creator, err := auth.GetUserID(tknStr)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		urlNew := store.NewURL(link, urls[i].OriginalURL, creator)
-		if err := s.Database.WriteURL(urlNew, creator, &idForData); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
 		// проверка для работы флага b
 		if s.config.ShortURLAddr != "" {
 			hostForLink = s.config.ShortURLAddr
 			link = fmt.Sprintf("%s/%s", hostForLink, idForData)
 		} else {
 			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+		}
+
+		// для авторизации
+		if !authForFlag {
+			c, err := r.Cookie("token")
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			tknStr = c.Value
+		} else {
+			tknStr = authString
+		}
+
+		creator, err := auth.GetUserID(tknStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		urlNew := store.NewURL(link, urls[i].OriginalURL, creator)
+		if err := s.Database.WriteURL(urlNew, creator, &idForData); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
 		urls[i].shortURL = link
