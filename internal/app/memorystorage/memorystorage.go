@@ -3,7 +3,6 @@ package memorystorage
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
 )
@@ -15,14 +14,14 @@ type keyForMemory struct {
 
 // MemoryStorage реализует хранение в мапе.
 type MemoryStorage struct {
-	store map[keyForMemory]string
+	store map[string]string
 }
 
 // NewMemoryStorage инициализирует хранилище.
 func NewMemoryStorage() *MemoryStorage {
 
 	return &MemoryStorage{
-		store: make(map[keyForMemory]string),
+		store: make(map[string]string),
 	}
 }
 
@@ -33,25 +32,14 @@ func (m *MemoryStorage) WriteURL(url *store.URL, id int, ssh *string) error {
 		return err
 	}
 
-	// создание двойного ключа
-	var key keyForMemory
-	key.id = *ssh
-	key.userID = strconv.Itoa(id)
-
-	//m.store[*ssh] = string(data)\
-	m.store[key] = string(data)
+	m.store[*ssh] = string(data)
 	return nil
 }
 
 // ReadURL вычитывает url по ключу.
-func (m *MemoryStorage) ReadURL(url *store.URL, id int, ssh string) error {
+func (m *MemoryStorage) ReadURL(url *store.URL, ssh string) error {
 
-	// создание двойного ключа
-	var key keyForMemory
-	key.id = ssh
-	key.userID = strconv.Itoa(id)
-
-	value, ok := m.store[key]
+	value, ok := m.store[ssh]
 	if !ok {
 		return fmt.Errorf("not found %s", ssh)
 	}

@@ -18,12 +18,14 @@ var (
 type URL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	Creator     int
 }
 
-func NewURL(short, original string) *URL {
+func NewURL(short, original string, creator int) *URL {
 	return &URL{
 		ShortURL:    short,
 		OriginalURL: original,
+		Creator:     creator,
 	}
 }
 
@@ -31,7 +33,7 @@ func NewURL(short, original string) *URL {
 type Database interface {
 	WriteURL(url *URL, id int, ssh *string) error
 	RewriteURL(url *URL) error
-	ReadURL(url *URL, id int, ssh string) error
+	ReadURL(url *URL, ssh string) error
 	Create(id int) (int, error)
 	GetUser(userID int) error
 	Conflict(url *URL) (string, error)
@@ -141,8 +143,8 @@ func (d *Postgres) Conflict(url *URL) (string, error) {
 }
 
 // ReadURL возвращает адрес по ключу из БД.
-func (d *Postgres) ReadURL(url *URL, id int, ssh string) error {
-	row := d.store.QueryRow("select shorturl from url where id = $1 and user_id = $2", ssh, id)
+func (d *Postgres) ReadURL(url *URL, ssh string) error {
+	row := d.store.QueryRow("select shorturl from url where id = $1 and user_id = $2", ssh, 0)
 
 	var link string
 

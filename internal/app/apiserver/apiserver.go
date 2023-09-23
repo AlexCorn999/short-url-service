@@ -173,8 +173,6 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
 
-	url := store.NewURL(link, string(body))
-
 	// для авторизации
 	var tknStr string
 	if !authForFlag {
@@ -188,13 +186,14 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		tknStr = authString
 	}
 
-	id, err := auth.GetUserID(tknStr)
+	creator, err := auth.GetUserID(tknStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if err = s.Database.WriteURL(url, id, &idForData); err != nil {
+	url := store.NewURL(link, string(body), creator)
+	if err = s.Database.WriteURL(url, creator, &idForData); err != nil {
 		// проверка, что ссылка уже есть в базе
 		if errors.Is(err, store.ErrConfilict) {
 
@@ -221,7 +220,7 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		} else {
 			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 		}
-		urlResult := store.NewURL(link, string(body))
+		urlResult := store.NewURL(link, string(body), creator)
 		// тут нужно перезаписать значения в базе
 		if err := s.Database.RewriteURL(urlResult); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -240,26 +239,7 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 
 	var url store.URL
 
-	// для авторизации
-	var tknStr string
-	if !authForFlag {
-		c, err := r.Cookie("token")
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		tknStr = c.Value
-	} else {
-		tknStr = authString
-	}
-
-	idForAuth, err := auth.GetUserID(tknStr)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if err := s.Database.ReadURL(&url, idForAuth, id[1:]); err != nil {
+	if err := s.Database.ReadURL(&url, id[1:]); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -305,21 +285,27 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
 
-	// для авторизации
-	c, err := r.Cookie("token")
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	/// для авторизации
+	var tknStr string
+	if !authForFlag {
+		c, err := r.Cookie("token")
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		tknStr = c.Value
+	} else {
+		tknStr = authString
 	}
-	tknStr := c.Value
-	id, err := auth.GetUserID(tknStr)
+
+	creator, err := auth.GetUserID(tknStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	urlNew := store.NewURL(link, url.URL)
-	if err := s.Database.WriteURL(urlNew, id, &idForData); err != nil {
+	urlNew := store.NewURL(link, url.URL, creator)
+	if err := s.Database.WriteURL(urlNew, creator, &idForData); err != nil {
 		// проверка, что ссылка уже есть в базе
 		if errors.Is(err, store.ErrConfilict) {
 
@@ -396,13 +382,13 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		tknStr := c.Value
-		id, err := auth.GetUserID(tknStr)
+		creator, err := auth.GetUserID(tknStr)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		urlNew := store.NewURL(link, urls[i].OriginalURL)
-		if err := s.Database.WriteURL(urlNew, id, &idForData); err != nil {
+		urlNew := store.NewURL(link, urls[i].OriginalURL, creator)
+		if err := s.Database.WriteURL(urlNew, creator, &idForData); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}

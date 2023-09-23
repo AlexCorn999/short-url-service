@@ -55,7 +55,7 @@ func (d *BoltDB) WriteURL(url *store.URL, id int, ssh *string) error {
 }
 
 // ReadURL вычитывает url по ключу.
-func (d *BoltDB) ReadURL(url *store.URL, id int, ssh string) error {
+func (d *BoltDB) ReadURL(url *store.URL, ssh string) error {
 	var v []byte
 	d.Store.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("URLBucket"))
