@@ -489,10 +489,11 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	creator, err := auth.GetUserID(tknStr)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
+	fmt.Println(creator)
 	result, err := s.Database.GetAllURL(creator)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -506,9 +507,16 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	resultForJSON := make([]resultURL, len(result))
 
-	for i := 0; i < len(result); i++ {
-		resultForJSON[i].OriginalURL = result[i].ShortURL
-		resultForJSON[i].ShortURL = result[i].OriginalURL
+	if s.typeStore != "file" {
+		for i := 0; i < len(result); i++ {
+			resultForJSON[i].OriginalURL = result[i].ShortURL
+			resultForJSON[i].ShortURL = result[i].OriginalURL
+		}
+	} else {
+		for i := 0; i < len(result); i++ {
+			resultForJSON[i].OriginalURL = result[i].OriginalURL
+			resultForJSON[i].ShortURL = result[i].ShortURL
+		}
 	}
 
 	if len(resultForJSON) == 0 {
