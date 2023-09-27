@@ -19,7 +19,7 @@ func TestStringAccept(t *testing.T) {
 	server.configureRouter()
 	server.configureStore()
 	authForFlag = true
-	authString = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTU0ODQyNDcsIlVzZXJJRCI6Mn0.t1JXSNXcFN-CXgqHl6qJo1pu4Vexx3fk0R2zQhdHWMI"
+	authString = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTU4MjQwNTMsIlVzZXJJRCI6NH0.ZdLbRCcfu7i6N7TSqHOMLUkeZoiY9kI7llroyqMbGb0"
 
 	if server.typeStore == "database" {
 		defer server.Database.Close()
