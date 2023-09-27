@@ -16,6 +16,7 @@ var (
 	ErrDeleted   = errors.New("has been deleted")
 )
 
+// URL структура для использования в хранилище.
 type URL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
@@ -23,6 +24,7 @@ type URL struct {
 	DeletedFlag bool
 }
 
+// NewURL возвращает новый url.
 func NewURL(short, original string, creator int) *URL {
 	return &URL{
 		ShortURL:    short,
@@ -124,6 +126,7 @@ func (d *Postgres) RewriteURL(url *URL) error {
 	return nil
 }
 
+// Conflict помогает осуществить проверку на уже созданный url.
 func (d *Postgres) Conflict(url *URL) (string, error) {
 	rows, err := d.store.Query("select originalurl from url where shorturl = $1", url.OriginalURL)
 	if err != nil {
@@ -209,7 +212,7 @@ func (d *Postgres) InitID() (int, error) {
 	return maxID, nil
 }
 
-// InitID первичная инициализация.
+// DeleteURL удаляет url у текущего пользователя.
 func (d *Postgres) DeleteURL(shortURL string, creator int) error {
 	deletedFlag := true
 

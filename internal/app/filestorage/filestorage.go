@@ -97,6 +97,7 @@ func (d *BoltDB) GetAllURL(id int) ([]store.URL, error) {
 	return userURL, nil
 }
 
+// DeleteURL удаляет url у текущего пользователя.
 func (d *BoltDB) DeleteURL(shortURL string, creator int) error {
 
 	type valuesForDelete struct {
@@ -115,7 +116,7 @@ func (d *BoltDB) DeleteURL(shortURL string, creator int) error {
 				return err
 			}
 
-			if url.OriginalURL == shortURL && url.Creator == creator {
+			if url.ShortURL == shortURL && url.Creator == creator {
 				url.DeletedFlag = true
 				data, err := json.Marshal(url)
 				if err != nil {
@@ -148,7 +149,6 @@ func (d *BoltDB) Close() error {
 	return d.Store.Close()
 }
 
-// CheckPing проверяет подключение к базе данных.
 func (d *BoltDB) CheckPing() error {
 	return nil
 }

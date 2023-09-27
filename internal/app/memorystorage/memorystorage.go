@@ -65,6 +65,7 @@ func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
 	return userURL, nil
 }
 
+// DeleteURL удаляет url у текущего пользователя.
 func (m *MemoryStorage) DeleteURL(shortURL string, creator int) error {
 	for key, value := range m.store {
 		var url store.URL
@@ -72,7 +73,7 @@ func (m *MemoryStorage) DeleteURL(shortURL string, creator int) error {
 			return err
 		}
 
-		if url.OriginalURL == shortURL && url.Creator == creator {
+		if url.ShortURL == shortURL && url.Creator == creator {
 			url.DeletedFlag = true
 			data, err := json.Marshal(url)
 			if err != nil {
@@ -85,7 +86,6 @@ func (m *MemoryStorage) DeleteURL(shortURL string, creator int) error {
 
 }
 
-// RewriteURL добавляет URL в базу данных.
 func (m *MemoryStorage) RewriteURL(url *store.URL) error {
 	return nil
 }
@@ -94,7 +94,6 @@ func (m *MemoryStorage) Close() error {
 	return nil
 }
 
-// CheckPing проверяет подключение к базе данных.
 func (m *MemoryStorage) CheckPing() error {
 	return nil
 }

@@ -20,7 +20,7 @@ var (
 const tokenExp = time.Hour * 3
 const secretKey = "yandex"
 
-// BuildJWTString создает токен
+// BuildJWTString создает токен.
 func BuildJWTString() (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -38,7 +38,7 @@ func BuildJWTString() (string, error) {
 	return tokenString, nil
 }
 
-// GetUserID проверяет токен
+// GetUserID проверяет токен.
 func GetUserID(tokenString string) (int, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {

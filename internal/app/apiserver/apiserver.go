@@ -539,58 +539,7 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 	w.Write(objectJSON)
 }
 
-func (s *APIServer) Auth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tokenFlag := false
-		var token string
-
-		if s.typeStore == "database" {
-			// переписываем значение из базы для user_id
-			newIDForDB, err := s.Database.InitID()
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			auth.ID = newIDForDB + 1
-		}
-
-		// проверка на cуществование cookie
-		c, err := r.Cookie("token")
-		if err != nil {
-			if err == http.ErrNoCookie {
-				token, err = auth.BuildJWTString()
-				if err != nil {
-					w.WriteHeader(http.StatusBadRequest)
-					return
-				}
-				tokenFlag = true
-			} else {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-
-		}
-
-		if !tokenFlag {
-			tknStr = c.Value
-		} else {
-			tknStr = token
-		}
-
-		if tokenFlag {
-			authForFlag = true
-			authString = token
-			http.SetCookie(w, &http.Cookie{
-				Name:  "token",
-				Value: token,
-			})
-
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
+// DeleteURL удаляет указанные url у текущего пользователя.
 func (s *APIServer) DeleteURL(w http.ResponseWriter, r *http.Request) {
 
 	c, err := r.Cookie("token")
@@ -648,4 +597,57 @@ func (s *APIServer) DeleteURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// Auth middleware для авторизации пользователя.
+func (s *APIServer) Auth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenFlag := false
+		var token string
+
+		if s.typeStore == "database" {
+			// переписываем значение из базы для user_id
+			newIDForDB, err := s.Database.InitID()
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			auth.ID = newIDForDB + 1
+		}
+
+		// проверка на cуществование cookie
+		c, err := r.Cookie("token")
+		if err != nil {
+			if err == http.ErrNoCookie {
+				token, err = auth.BuildJWTString()
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				tokenFlag = true
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+		}
+
+		if !tokenFlag {
+			tknStr = c.Value
+		} else {
+			tknStr = token
+		}
+
+		if tokenFlag {
+			authForFlag = true
+			authString = token
+			http.SetCookie(w, &http.Cookie{
+				Name:  "token",
+				Value: token,
+			})
+
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

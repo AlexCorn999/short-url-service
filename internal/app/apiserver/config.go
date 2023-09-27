@@ -38,7 +38,6 @@ type URLAddress struct {
 	Port int
 }
 
-// Имплементация интерфейса для флага b
 func (u URLAddress) String() string {
 	return u.http + ":" + u.Host + ":" + strconv.Itoa(u.Port)
 }
@@ -58,7 +57,6 @@ func (u *URLAddress) Set(s string) error {
 	return nil
 }
 
-// Имплементация интерфейса для флага a
 func (a NetAddress) String() string {
 	return a.Host + ":" + strconv.Itoa(a.Port)
 }
@@ -77,7 +75,7 @@ func (a *NetAddress) Set(s string) error {
 	return nil
 }
 
-// parseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
+// ParseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных.
 func (c *Config) ParseFlags() {
 
 	addr := new(NetAddress)
