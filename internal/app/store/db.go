@@ -3,7 +3,6 @@ package store
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -183,7 +182,6 @@ func (d *Postgres) GetAllURL(id int) ([]URL, error) {
 		var u URL
 		err := rows.Scan(&u.ShortURL, &u.OriginalURL)
 		if err != nil {
-			fmt.Println(err)
 			return nil, err
 		}
 		urls = append(urls, u)
