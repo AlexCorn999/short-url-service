@@ -627,9 +627,21 @@ func (s *APIServer) DeleteURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	hostForLink := r.Host
+	var lin string
+
 	// удаление url
 	for _, url := range urls {
-		if err := s.Database.DeleteURL(url, creator); err != nil {
+
+		// проверка для работы флага b
+		if s.config.ShortURLAddr != "" {
+			hostForLink = s.config.ShortURLAddr
+			lin = fmt.Sprintf("%s/%s", hostForLink, url)
+		} else {
+			lin = fmt.Sprintf("http://%s/%s", hostForLink, url)
+		}
+
+		if err := s.Database.DeleteURL(lin, creator); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}

@@ -212,7 +212,8 @@ func (d *Postgres) InitID() (int, error) {
 // InitID первичная инициализация.
 func (d *Postgres) DeleteURL(shortURL string, creator int) error {
 	deletedFlag := true
-	result, err := d.store.Exec("update url SET deleted_flag = $1 WHERE shorturl = $2 and user_id = $3", deletedFlag, shortURL, creator)
+
+	result, err := d.store.Exec("update url SET deleted_flag = $1 WHERE originalurl = $2 and user_id = $3", deletedFlag, shortURL, creator)
 	if err != nil {
 		return err
 	}
