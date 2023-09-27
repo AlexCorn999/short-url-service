@@ -13,12 +13,14 @@ import (
 var (
 	IDStorage    = 1
 	ErrConfilict = errors.New("URL already exists in the database")
+	ErrDeleted   = errors.New("has been deleted")
 )
 
 type URL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 	Creator     int
+	DeletedFlag bool
 }
 
 func NewURL(short, original string, creator int) *URL {
@@ -26,6 +28,7 @@ func NewURL(short, original string, creator int) *URL {
 		ShortURL:    short,
 		OriginalURL: original,
 		Creator:     creator,
+		DeletedFlag: false,
 	}
 }
 
@@ -36,6 +39,7 @@ type Database interface {
 	ReadURL(url *URL, ssh string) error
 	GetAllURL(id int) ([]URL, error)
 	Conflict(url *URL) (string, error)
+	DeleteURL(shortURL string, creator int) error
 	Close() error
 	InitID() (int, error)
 	CheckPing() error
@@ -79,7 +83,7 @@ func (d *Postgres) Close() error {
 // WriteURL добавляет URL в базу данных.
 func (d *Postgres) WriteURL(url *URL, id int, ssh *string) error {
 
-	result, err := d.store.Exec("insert into url (shorturl, originalurl, user_id) values ($1, $2, $3) on conflict (shorturl) do nothing", url.OriginalURL, url.ShortURL, url.Creator)
+	result, err := d.store.Exec("insert into url (shorturl, originalurl, user_id, deleted_flag) values ($1, $2, $3, $4) on conflict (shorturl) do nothing", url.OriginalURL, url.ShortURL, url.Creator, url.DeletedFlag)
 	if err != nil {
 		return err
 	}
@@ -105,7 +109,6 @@ func (d *Postgres) WriteURL(url *URL, id int, ssh *string) error {
 func (d *Postgres) RewriteURL(url *URL) error {
 	result, err := d.store.Exec("update url SET shorturl = $1, originalurl = $2 WHERE shorturl = $1", url.OriginalURL, url.ShortURL)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
@@ -143,12 +146,17 @@ func (d *Postgres) Conflict(url *URL) (string, error) {
 
 // ReadURL возвращает адрес по ключу из БД.
 func (d *Postgres) ReadURL(url *URL, ssh string) error {
-	row := d.store.QueryRow("select shorturl from url where id = $1", ssh)
+	deletedFlag := false
+	row := d.store.QueryRow("select shorturl, deleted_flag from url where id = $1", ssh)
 
 	var link string
 
-	if err := row.Scan(&link); err != nil {
+	if err := row.Scan(&link, &deletedFlag); err != nil {
 		return err
+	}
+
+	if deletedFlag {
+		return ErrDeleted
 	}
 
 	if link == "" {
@@ -159,6 +167,7 @@ func (d *Postgres) ReadURL(url *URL, ssh string) error {
 	return nil
 }
 
+// GetAllURL возвращает все сокращенные url пользователя.
 func (d *Postgres) GetAllURL(id int) ([]URL, error) {
 	var urls []URL
 	rows, err := d.store.Query("SELECT shorturl, originalurl FROM url WHERE user_id = $1", id)
@@ -198,4 +207,23 @@ func (d *Postgres) InitID() (int, error) {
 		maxID = 1
 	}
 	return maxID, nil
+}
+
+// InitID первичная инициализация.
+func (d *Postgres) DeleteURL(shortURL string, creator int) error {
+	deletedFlag := true
+	result, err := d.store.Exec("update url SET deleted_flag = $1 WHERE shorturl = $2 and user_id = $3", deletedFlag, shortURL, creator)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrConfilict
+	}
+	return nil
 }

@@ -33,7 +33,6 @@ func (m *MemoryStorage) WriteURL(url *store.URL, id int, ssh *string) error {
 
 // ReadURL вычитывает url по ключу.
 func (m *MemoryStorage) ReadURL(url *store.URL, ssh string) error {
-
 	value, ok := m.store[ssh]
 	if !ok {
 		return fmt.Errorf("not found %s", ssh)
@@ -42,9 +41,15 @@ func (m *MemoryStorage) ReadURL(url *store.URL, ssh string) error {
 	if err := json.Unmarshal([]byte(value), url); err != nil {
 		return err
 	}
+
+	if url.DeletedFlag {
+		return store.ErrDeleted
+	}
+
 	return nil
 }
 
+// GetAllURL возвращает все сокращенные url пользователя.
 func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
 	var userURL []store.URL
 
@@ -57,8 +62,27 @@ func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
 			userURL = append(userURL, url)
 		}
 	}
-
 	return userURL, nil
+}
+
+func (m *MemoryStorage) DeleteURL(shortURL string, creator int) error {
+	for key, value := range m.store {
+		var url store.URL
+		if err := json.Unmarshal([]byte(value), &url); err != nil {
+			return err
+		}
+
+		if url.OriginalURL == shortURL && url.Creator == creator {
+			url.DeletedFlag = true
+			data, err := json.Marshal(url)
+			if err != nil {
+				return err
+			}
+			m.store[key] = string(data)
+		}
+	}
+	return nil
+
 }
 
 // RewriteURL добавляет URL в базу данных.

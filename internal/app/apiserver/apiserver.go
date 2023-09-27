@@ -101,6 +101,7 @@ func (s *APIServer) configureRouter() {
 	s.router.Get("/{id}", s.StringBack)
 	s.router.Get("/ping", s.Ping)
 	s.router.Get("/api/user/urls", s.GetAllURL)
+	s.router.Delete("/api/user/urls", s.DeleteURL)
 	s.router.NotFound(badRequest)
 }
 
@@ -240,6 +241,10 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 	var url store.URL
 
 	if err := s.Database.ReadURL(&url, id[1:]); err != nil {
+		if errors.Is(err, store.ErrDeleted) {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -482,7 +487,6 @@ func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("token")
 	if err != nil {
-		s.logger.Info("ошибка тут c, err := r.Cookie()")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -585,4 +589,51 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (s *APIServer) DeleteURL(w http.ResponseWriter, r *http.Request) {
+
+	c, err := r.Cookie("token")
+	if err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	tknStr = c.Value
+
+	creator, err := auth.GetUserID(tknStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var urls []string
+
+	if err := json.Unmarshal(body, &urls); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// проверка на пустую ссылку
+	for _, url := range urls {
+		if len(strings.TrimSpace(url)) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	// удаление url
+	for _, url := range urls {
+		if err := s.Database.DeleteURL(url, creator); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 }

@@ -66,9 +66,15 @@ func (d *BoltDB) ReadURL(url *store.URL, ssh string) error {
 	if err := json.Unmarshal(v, url); err != nil {
 		return err
 	}
+
+	if url.DeletedFlag {
+		return store.ErrDeleted
+	}
+
 	return nil
 }
 
+// GetAllURL возвращает все сокращенные url пользователя.
 func (d *BoltDB) GetAllURL(id int) ([]store.URL, error) {
 	var userURL []store.URL
 
@@ -89,6 +95,53 @@ func (d *BoltDB) GetAllURL(id int) ([]store.URL, error) {
 	})
 
 	return userURL, nil
+}
+
+func (d *BoltDB) DeleteURL(shortURL string, creator int) error {
+
+	type valuesForDelete struct {
+		key  string
+		data []byte
+	}
+
+	var forDelete []valuesForDelete
+
+	d.Store.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("URLBucket"))
+		c := b.Cursor()
+		for k, value := c.First(); k != nil; k, value = c.Next() {
+			var url store.URL
+			if err := json.Unmarshal([]byte(value), &url); err != nil {
+				return err
+			}
+
+			if url.OriginalURL == shortURL && url.Creator == creator {
+				url.DeletedFlag = true
+				data, err := json.Marshal(url)
+				if err != nil {
+					return err
+				}
+
+				var val valuesForDelete
+				val.key = string(k)
+				val.data = data
+				forDelete = append(forDelete, val)
+			}
+
+		}
+		return nil
+	})
+
+	// перезапись значения
+	d.Store.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("URLBucket"))
+		for _, value := range forDelete {
+			b.Put([]byte(value.key), value.data)
+		}
+		return nil
+	})
+
+	return nil
 }
 
 func (d *BoltDB) Close() error {
