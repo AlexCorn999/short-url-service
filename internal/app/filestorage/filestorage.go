@@ -18,7 +18,7 @@ type BoltDB struct {
 func NewBoltDB(filePath string) (*BoltDB, error) {
 	db, err := bolt.Open(filePath, 0666, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error from file bucket. can't open file - %s ", err)
 	}
 
 	var b *bolt.Bucket
@@ -30,7 +30,7 @@ func NewBoltDB(filePath string) (*BoltDB, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error from file bucket. can't create bucket for url - %s ", err)
 	}
 
 	return &BoltDB{
@@ -43,13 +43,13 @@ func NewBoltDB(filePath string) (*BoltDB, error) {
 func (d *BoltDB) WriteURL(url *store.URL, id int, ssh *string) error {
 	data, err := json.Marshal(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("error from file. can't convert url for bucket - %s ", err)
 	}
 
 	d.Store.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("URLBucket"))
 		err := b.Put([]byte(*ssh), data)
-		return err
+		return fmt.Errorf("error from file bucket. can't put url to bucket - %s ", err)
 	})
 	return nil
 }
@@ -64,7 +64,7 @@ func (d *BoltDB) ReadURL(url *store.URL, ssh string) error {
 	})
 
 	if err := json.Unmarshal(v, url); err != nil {
-		return err
+		return fmt.Errorf("error from file bucket. can't convert url from bucket - %s ", err)
 	}
 
 	if url.DeletedFlag {
@@ -84,7 +84,7 @@ func (d *BoltDB) GetAllURL(id int) ([]store.URL, error) {
 		for k, value := c.First(); k != nil; k, value = c.Next() {
 			var url store.URL
 			if err := json.Unmarshal([]byte(value), &url); err != nil {
-				return err
+				return fmt.Errorf("error from file bucket. can't convert url from bucket - %s ", err)
 			}
 			if url.Creator == id {
 				userURL = append(userURL, url)
@@ -113,14 +113,14 @@ func (d *BoltDB) DeleteURL(shortURL string, creator int) error {
 		for k, value := c.First(); k != nil; k, value = c.Next() {
 			var url store.URL
 			if err := json.Unmarshal([]byte(value), &url); err != nil {
-				return err
+				return fmt.Errorf("error from file bucket. can't convert url from bucket - %s ", err)
 			}
 
 			if url.ShortURL == shortURL && url.Creator == creator {
 				url.DeletedFlag = true
 				data, err := json.Marshal(url)
 				if err != nil {
-					return err
+					return fmt.Errorf("error from file bucket. can't convert url from bucket - %s ", err)
 				}
 
 				var val valuesForDelete

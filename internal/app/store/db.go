@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -86,12 +87,12 @@ func (d *Postgres) WriteURL(url *URL, id int, ssh *string) error {
 
 	result, err := d.store.Exec("insert into url (shorturl, originalurl, user_id, deleted_flag) values ($1, $2, $3, $4) on conflict (shorturl) do nothing", url.OriginalURL, url.ShortURL, url.Creator, url.DeletedFlag)
 	if err != nil {
-		return err
+		return fmt.Errorf("error from postgres. can't add url to db - %s", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("error from postgres. can't add url to db - %s", err)
 	}
 
 	if rowsAffected == 0 {
@@ -100,7 +101,7 @@ func (d *Postgres) WriteURL(url *URL, id int, ssh *string) error {
 
 	err = d.store.QueryRow("SELECT id FROM url WHERE shorturl = $1", url.OriginalURL).Scan(ssh)
 	if err != nil {
-		return err
+		return fmt.Errorf("error from postgres. can't add url to db - %s", err)
 	}
 
 	return nil
@@ -110,12 +111,12 @@ func (d *Postgres) WriteURL(url *URL, id int, ssh *string) error {
 func (d *Postgres) RewriteURL(url *URL) error {
 	result, err := d.store.Exec("update url SET shorturl = $1, originalurl = $2 WHERE shorturl = $1", url.OriginalURL, url.ShortURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("error from postgres. can't update url in db - %s", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("error from postgres. can't update url in db - %s", err)
 	}
 
 	if rowsAffected == 0 {
@@ -129,18 +130,18 @@ func (d *Postgres) RewriteURL(url *URL) error {
 func (d *Postgres) Conflict(url *URL) (string, error) {
 	rows, err := d.store.Query("select originalurl from url where shorturl = $1", url.OriginalURL)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error from postgres. %s", err)
 	}
 	defer rows.Close()
 
 	var result string
 	for rows.Next() {
 		if err = rows.Scan(&result); err != nil {
-			return "", err
+			return "", fmt.Errorf("error from postgres. %s", err)
 		}
 	}
 	if err = rows.Err(); err != nil {
-		return "", err
+		return "", fmt.Errorf("error from postgres. %s", err)
 	}
 
 	return result, nil
@@ -154,7 +155,7 @@ func (d *Postgres) ReadURL(url *URL, ssh string) error {
 	var link string
 
 	if err := row.Scan(&link, &deletedFlag); err != nil {
-		return err
+		return fmt.Errorf("error from postgres. can't read url from db - %s", err)
 	}
 
 	if deletedFlag {
@@ -174,7 +175,7 @@ func (d *Postgres) GetAllURL(id int) ([]URL, error) {
 	var urls []URL
 	rows, err := d.store.Query("SELECT shorturl, originalurl FROM url WHERE user_id = $1", id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error from postgres. can't read url from db - %s", err)
 	}
 	defer rows.Close()
 
@@ -182,14 +183,14 @@ func (d *Postgres) GetAllURL(id int) ([]URL, error) {
 		var u URL
 		err := rows.Scan(&u.ShortURL, &u.OriginalURL)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error from postgres. can't read url from db - %s", err)
 		}
 		urls = append(urls, u)
 	}
 
 	err = rows.Err()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error from postgres. can't read url from db - %s", err)
 	}
 
 	return urls, nil
@@ -216,12 +217,12 @@ func (d *Postgres) DeleteURL(shortURL string, creator int) error {
 
 	result, err := d.store.Exec("update url SET deleted_flag = $1 WHERE originalurl = $2 and user_id = $3", deletedFlag, shortURL, creator)
 	if err != nil {
-		return err
+		return fmt.Errorf("error from postgres. can't delete url from db - %s", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("error from postgres. can't delete url from db - %s", err)
 	}
 
 	if rowsAffected == 0 {

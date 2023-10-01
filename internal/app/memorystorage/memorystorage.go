@@ -24,7 +24,7 @@ func NewMemoryStorage() *MemoryStorage {
 func (m *MemoryStorage) WriteURL(url *store.URL, id int, ssh *string) error {
 	data, err := json.Marshal(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("error from local storage. can't convert url - %s ", err)
 	}
 
 	m.store[*ssh] = string(data)
@@ -35,11 +35,11 @@ func (m *MemoryStorage) WriteURL(url *store.URL, id int, ssh *string) error {
 func (m *MemoryStorage) ReadURL(url *store.URL, ssh string) error {
 	value, ok := m.store[ssh]
 	if !ok {
-		return fmt.Errorf("not found %s", ssh)
+		return fmt.Errorf("error from local storage. url not found %s", ssh)
 	}
 
 	if err := json.Unmarshal([]byte(value), url); err != nil {
-		return err
+		return fmt.Errorf("error from local storage. can't convert url - %s ", err)
 	}
 
 	if url.DeletedFlag {
@@ -56,7 +56,7 @@ func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
 	for _, value := range m.store {
 		var url store.URL
 		if err := json.Unmarshal([]byte(value), &url); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error from local storage. can't convert url - %s ", err)
 		}
 		if url.Creator == id {
 			userURL = append(userURL, url)
@@ -70,14 +70,14 @@ func (m *MemoryStorage) DeleteURL(shortURL string, creator int) error {
 	for key, value := range m.store {
 		var url store.URL
 		if err := json.Unmarshal([]byte(value), &url); err != nil {
-			return err
+			return fmt.Errorf("error from local storage. can't convert url - %s ", err)
 		}
 
 		if url.ShortURL == shortURL && url.Creator == creator {
 			url.DeletedFlag = true
 			data, err := json.Marshal(url)
 			if err != nil {
-				return err
+				return fmt.Errorf("error from local storage. can't convert url - %s ", err)
 			}
 			m.store[key] = string(data)
 		}
