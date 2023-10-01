@@ -20,6 +20,12 @@ var (
 const tokenExp = time.Hour * 3
 const secretKey = "yandex"
 
+// ChangeID инициализирует и меняет ID для базы данных
+func ChangeID(newID int) {
+	ID = newID
+	ID++
+}
+
 // BuildJWTString создает токен.
 func BuildJWTString() (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{

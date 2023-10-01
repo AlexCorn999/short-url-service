@@ -130,7 +130,7 @@ func (s *APIServer) configureStore() error {
 		if err != nil {
 			return err
 		}
-		auth.ID = newIDForDB + 1
+		auth.ChangeID(newIDForDB)
 
 	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		db, err := filestorage.NewBoltDB(s.config.FilePath)
