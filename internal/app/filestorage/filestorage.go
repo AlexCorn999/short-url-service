@@ -49,7 +49,7 @@ func (d *BoltDB) WriteURL(url *store.URL, id int, ssh *string) error {
 	d.Store.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("URLBucket"))
 		err := b.Put([]byte(*ssh), data)
-		return fmt.Errorf("error from file. can't put url to bucket - %s ", err)
+		return err
 	})
 	return nil
 }
@@ -64,8 +64,7 @@ func (d *BoltDB) ReadURL(url *store.URL, ssh string) error {
 	})
 
 	if err := json.Unmarshal(v, url); err != nil {
-		return err
-		//fmt.Errorf("error from file. can't convert url from bucket - %s ", err)
+		return fmt.Errorf("error from file. can't convert url from bucket - %s ", err)
 	}
 
 	if url.DeletedFlag {
