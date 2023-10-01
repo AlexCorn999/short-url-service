@@ -295,7 +295,7 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	if !authForFlag {
 		c, err := r.Cookie("token")
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		tknStr = c.Value
@@ -500,7 +500,7 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	result, err := s.Database.GetAllURL(creator)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -618,7 +618,7 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 		// проверка на cуществование cookie
 		c, err := r.Cookie("token")
 		if err != nil {
-			if err == http.ErrNoCookie {
+			if errors.Is(err, http.ErrNoCookie) {
 				token, err = auth.BuildJWTString()
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
@@ -642,8 +642,9 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 			authForFlag = true
 			authString = token
 			http.SetCookie(w, &http.Cookie{
-				Name:  "token",
-				Value: token,
+				Name:     "token",
+				Value:    token,
+				HttpOnly: true,
 			})
 
 		}
