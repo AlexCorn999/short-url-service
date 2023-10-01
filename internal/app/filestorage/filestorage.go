@@ -18,19 +18,19 @@ type BoltDB struct {
 func NewBoltDB(filePath string) (*BoltDB, error) {
 	db, err := bolt.Open(filePath, 0666, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error from file bucket. can't open file - %s ", err)
+		return nil, fmt.Errorf("error from file. can't open file - %s ", err)
 	}
 
 	var b *bolt.Bucket
 	err = db.Update(func(tx *bolt.Tx) error {
 		b, err = tx.CreateBucket([]byte("URLBucket"))
 		if err != nil {
-			return fmt.Errorf("create bucket: %s", err)
+			return fmt.Errorf("error from file. create bucket: %s", err)
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error from file bucket. can't create bucket for url - %s ", err)
+		return nil, fmt.Errorf("error from file. can't create bucket for url - %s ", err)
 	}
 
 	return &BoltDB{
@@ -43,8 +43,7 @@ func NewBoltDB(filePath string) (*BoltDB, error) {
 func (d *BoltDB) WriteURL(url *store.URL, id int, ssh *string) error {
 	data, err := json.Marshal(url)
 	if err != nil {
-		return err
-		//fmt.Errorf("error from file. can't convert url for bucket - %s ", err)
+		return fmt.Errorf("error from file. can't convert url for bucket - %s ", err)
 	}
 
 	d.Store.Update(func(tx *bolt.Tx) error {
@@ -67,7 +66,6 @@ func (d *BoltDB) ReadURL(url *store.URL, ssh string) error {
 
 	if err := json.Unmarshal(v, url); err != nil {
 		return err
-
 		//fmt.Errorf("error from file bucket. can't convert url from bucket - %s ", err)
 	}
 
