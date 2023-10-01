@@ -18,9 +18,7 @@ type BoltDB struct {
 func NewBoltDB(filePath string) (*BoltDB, error) {
 	db, err := bolt.Open(filePath, 0666, nil)
 	if err != nil {
-		return nil, err
-		//fmt.Errorf("error from file bucket. can't open file - %s ", err)
-
+		return nil, fmt.Errorf("error from file bucket. can't open file - %s ", err)
 	}
 
 	var b *bolt.Bucket
@@ -32,8 +30,7 @@ func NewBoltDB(filePath string) (*BoltDB, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, err
-		//fmt.Errorf("error from file bucket. can't create bucket for url - %s ", err)
+		return nil, fmt.Errorf("error from file bucket. can't create bucket for url - %s ", err)
 	}
 
 	return &BoltDB{
