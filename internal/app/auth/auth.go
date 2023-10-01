@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -20,7 +21,7 @@ var (
 const tokenExp = time.Hour * 3
 const secretKey = "yandex"
 
-// ChangeID инициализирует и меняет ID для базы данных
+// ChangeID инициализирует и меняет ID для базы данных.
 func ChangeID(newID int) {
 	ID = newID
 	ID++
@@ -37,7 +38,7 @@ func BuildJWTString() (string, error) {
 
 	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error from auth - %s", err)
 	}
 
 	ID++
@@ -51,7 +52,7 @@ func GetUserID(tokenString string) (int, error) {
 		return []byte(secretKey), nil
 	})
 	if err != nil {
-		return -1, errors.New("something wrong")
+		return -1, fmt.Errorf("error from auth - %s", err)
 	}
 
 	if !token.Valid {
