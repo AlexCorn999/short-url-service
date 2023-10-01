@@ -125,6 +125,13 @@ func (s *APIServer) configureStore() error {
 		s.Database = db
 		s.typeStore = "database"
 
+		// переписываем значение из базы для user_id
+		newIDForDB, err := s.Database.InitID()
+		if err != nil {
+			return err
+		}
+		auth.ID = newIDForDB + 1
+
 	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		db, err := filestorage.NewBoltDB(s.config.FilePath)
 		if err != nil {
@@ -604,16 +611,6 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenFlag := false
 		var token string
-
-		if s.typeStore == "database" {
-			// переписываем значение из базы для user_id
-			newIDForDB, err := s.Database.InitID()
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			auth.ID = newIDForDB + 1
-		}
 
 		// проверка на cуществование cookie
 		c, err := r.Cookie("token")
