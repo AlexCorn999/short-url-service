@@ -64,7 +64,7 @@ func (d *BoltDB) ReadURL(url *store.URL, ssh string) error {
 	})
 
 	if err := json.Unmarshal(v, url); err != nil {
-		return fmt.Errorf("error from file bucket. can't convert url from bucket - %s ", err)
+		return err
 	}
 
 	if url.DeletedFlag {
