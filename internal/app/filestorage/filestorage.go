@@ -98,7 +98,7 @@ func (d *BoltDB) GetAllURL(id int) ([]store.URL, error) {
 }
 
 // DeleteURL удаляет url у текущего пользователя.
-func (d *BoltDB) DeleteURL(shortURL string, creator int) error {
+func (d *BoltDB) DeleteURL(tasks []store.Task) error {
 
 	type valuesForDelete struct {
 		key  string
@@ -107,31 +107,33 @@ func (d *BoltDB) DeleteURL(shortURL string, creator int) error {
 
 	var forDelete []valuesForDelete
 
-	d.Store.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("URLBucket"))
-		c := b.Cursor()
-		for k, value := c.First(); k != nil; k, value = c.Next() {
-			var url store.URL
-			if err := json.Unmarshal([]byte(value), &url); err != nil {
-				return fmt.Errorf("error from file. can't convert url from bucket - %s ", err)
-			}
-
-			if url.ShortURL == shortURL && url.Creator == creator {
-				url.DeletedFlag = true
-				data, err := json.Marshal(url)
-				if err != nil {
-					return fmt.Errorf("error from file. can't convert url for bucket - %s ", err)
+	for _, task := range tasks {
+		d.Store.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("URLBucket"))
+			c := b.Cursor()
+			for k, value := c.First(); k != nil; k, value = c.Next() {
+				var url store.URL
+				if err := json.Unmarshal([]byte(value), &url); err != nil {
+					return fmt.Errorf("error from file. can't convert url from bucket - %s ", err)
 				}
 
-				var val valuesForDelete
-				val.key = string(k)
-				val.data = data
-				forDelete = append(forDelete, val)
-			}
+				if url.ShortURL == task.Link && url.Creator == task.Creator {
+					url.DeletedFlag = true
+					data, err := json.Marshal(url)
+					if err != nil {
+						return fmt.Errorf("error from file. can't convert url for bucket - %s ", err)
+					}
 
-		}
-		return nil
-	})
+					var val valuesForDelete
+					val.key = string(k)
+					val.data = data
+					forDelete = append(forDelete, val)
+				}
+
+			}
+			return nil
+		})
+	}
 
 	// перезапись значения
 	d.Store.Update(func(tx *bolt.Tx) error {

@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/AlexCorn999/short-url-service/internal/app/logger"
 	"github.com/AlexCorn999/short-url-service/internal/app/memorystorage"
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
+	"github.com/AlexCorn999/short-url-service/internal/app/worker"
 	"github.com/go-chi/chi"
 
 	log "github.com/sirupsen/logrus"
@@ -52,6 +54,7 @@ type APIServer struct {
 	store.Database
 	initialized bool
 	typeStore   string
+	worker      *worker.DeleteURLQueue
 	logger      *log.Logger
 	config      *Config
 	router      *chi.Mux
@@ -84,6 +87,11 @@ func (s *APIServer) Start() error {
 	} else if s.typeStore == "file" {
 		defer s.Database.Close()
 	}
+
+	// для асинхронного удаления.
+	worker := worker.NewDeleteURLQueue(s.Database, s.logger, 5)
+	s.worker = worker
+	s.worker.Start(context.Background())
 
 	s.logger.Info("starting api server")
 
@@ -597,10 +605,11 @@ func (s *APIServer) DeleteURL(w http.ResponseWriter, r *http.Request) {
 			lin = fmt.Sprintf("http://%s/%s", hostForLink, url)
 		}
 
-		if err := s.Database.DeleteURL(lin, creator); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
+		// асинхронное удаление ссылок
+		var t store.Task
+		t.Link = lin
+		t.Creator = creator
+		s.worker.Push(&t)
 	}
 
 	w.WriteHeader(http.StatusAccepted)

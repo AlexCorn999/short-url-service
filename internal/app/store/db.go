@@ -16,6 +16,19 @@ var (
 	ErrDeleted   = errors.New("has been deleted")
 )
 
+// Task структура хадач для удаления.
+type Task struct {
+	Link    string
+	Creator int
+}
+
+func NewTask(link string, creator int) *Task {
+	return &Task{
+		Link:    link,
+		Creator: creator,
+	}
+}
+
 // URL структура для использования в хранилище.
 type URL struct {
 	ShortURL    string `json:"short_url"`
@@ -41,7 +54,7 @@ type Database interface {
 	ReadURL(url *URL, ssh string) error
 	GetAllURL(id int) ([]URL, error)
 	Conflict(url *URL) (string, error)
-	DeleteURL(shortURL string, creator int) error
+	DeleteURL(tasks []Task) error
 	Close() error
 	InitID() (int, error)
 	CheckPing() error
@@ -212,21 +225,24 @@ func (d *Postgres) InitID() (int, error) {
 }
 
 // DeleteURL удаляет url у текущего пользователя.
-func (d *Postgres) DeleteURL(shortURL string, creator int) error {
+func (d *Postgres) DeleteURL(tasks []Task) error {
 	deletedFlag := true
 
-	result, err := d.store.Exec("update url SET deleted_flag = $1 WHERE originalurl = $2 and user_id = $3", deletedFlag, shortURL, creator)
-	if err != nil {
-		return fmt.Errorf("error from postgres. can't delete url from db - %s", err)
+	for _, task := range tasks {
+		result, err := d.store.Exec("update url SET deleted_flag = $1 WHERE originalurl = $2 and user_id = $3", deletedFlag, task.Link, task.Creator)
+		if err != nil {
+			return fmt.Errorf("error from postgres. can't delete url from db - %s", err)
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("error from postgres. can't delete url from db - %s", err)
+		}
+
+		if rowsAffected == 0 {
+			return ErrConfilict
+		}
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("error from postgres. can't delete url from db - %s", err)
-	}
-
-	if rowsAffected == 0 {
-		return ErrConfilict
-	}
 	return nil
 }

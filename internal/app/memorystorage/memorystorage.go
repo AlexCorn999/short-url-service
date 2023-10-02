@@ -66,22 +66,31 @@ func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
 }
 
 // DeleteURL удаляет url у текущего пользователя.
-func (m *MemoryStorage) DeleteURL(shortURL string, creator int) error {
-	for key, value := range m.store {
-		var url store.URL
-		if err := json.Unmarshal([]byte(value), &url); err != nil {
-			return fmt.Errorf("error from local storage. can't convert url - %s ", err)
-		}
+func (m *MemoryStorage) DeleteURL(tasks []store.Task) error {
 
-		if url.ShortURL == shortURL && url.Creator == creator {
-			url.DeletedFlag = true
-			data, err := json.Marshal(url)
-			if err != nil {
+	fmt.Println("из функции удаления ", tasks)
+
+	for _, task := range tasks {
+		for key, value := range m.store {
+			var url store.URL
+			if err := json.Unmarshal([]byte(value), &url); err != nil {
 				return fmt.Errorf("error from local storage. can't convert url - %s ", err)
 			}
-			m.store[key] = string(data)
+
+			if url.ShortURL == task.Link && url.Creator == task.Creator {
+				url.DeletedFlag = true
+
+				data, err := json.Marshal(url)
+				if err != nil {
+					return fmt.Errorf("error from local storage. can't convert url - %s ", err)
+				}
+
+				fmt.Println(url)
+				m.store[key] = string(data)
+			}
 		}
 	}
+
 	return nil
 
 }
