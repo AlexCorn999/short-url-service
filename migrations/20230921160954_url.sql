@@ -6,7 +6,8 @@ CREATE TABLE
     url (
         id SERIAL PRIMARY KEY,
         shorturl VARCHAR(255) NOT NULL UNIQUE,
-        originalurl VARCHAR(255) NOT NULL
+        originalurl VARCHAR(255) NOT NULL,
+        user_id integer NOT NULL
     );
 
 -- +goose StatementEnd

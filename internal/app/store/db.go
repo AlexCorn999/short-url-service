@@ -18,21 +18,26 @@ var (
 type URL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+	Creator     int
 }
 
-func NewURL(short, original string) *URL {
+func NewURL(short, original string, creator int) *URL {
 	return &URL{
 		ShortURL:    short,
 		OriginalURL: original,
+		Creator:     creator,
 	}
 }
 
 // Database общая реализация базы данных.
 type Database interface {
-	WriteURL(url *URL, ssh *string) error
+	WriteURL(url *URL, id int, ssh *string) error
+	RewriteURL(url *URL) error
 	ReadURL(url *URL, ssh string) error
+	GetAllURL(id int) ([]URL, error)
 	Conflict(url *URL) (string, error)
 	Close() error
+	InitID() (int, error)
 	CheckPing() error
 }
 
@@ -72,11 +77,10 @@ func (d *Postgres) Close() error {
 }
 
 // WriteURL добавляет URL в базу данных.
-func (d *Postgres) WriteURL(url *URL, ssh *string) error {
+func (d *Postgres) WriteURL(url *URL, id int, ssh *string) error {
 
-	result, err := d.store.Exec("insert into url (shorturl, originalurl) values ($1, $2) on conflict (shorturl) do nothing", url.OriginalURL, url.ShortURL)
+	result, err := d.store.Exec("insert into url (shorturl, originalurl, user_id) values ($1, $2, $3) on conflict (shorturl) do nothing", url.OriginalURL, url.ShortURL, url.Creator)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
@@ -92,6 +96,26 @@ func (d *Postgres) WriteURL(url *URL, ssh *string) error {
 	err = d.store.QueryRow("SELECT id FROM url WHERE shorturl = $1", url.OriginalURL).Scan(ssh)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// RewriteURL добавляет URL в базу данных.
+func (d *Postgres) RewriteURL(url *URL) error {
+	result, err := d.store.Exec("update url SET shorturl = $1, originalurl = $2 WHERE shorturl = $1", url.OriginalURL, url.ShortURL)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrConfilict
 	}
 
 	return nil
@@ -135,7 +159,43 @@ func (d *Postgres) ReadURL(url *URL, ssh string) error {
 	return nil
 }
 
+func (d *Postgres) GetAllURL(id int) ([]URL, error) {
+	var urls []URL
+	rows, err := d.store.Query("SELECT shorturl, originalurl FROM url WHERE user_id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var u URL
+		err := rows.Scan(&u.ShortURL, &u.OriginalURL)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		urls = append(urls, u)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return urls, nil
+}
+
 // CheckPing проверяет подключение к базе данных.
 func (d *Postgres) CheckPing() error {
 	return d.store.Ping()
+}
+
+// InitID первичная инициализация.
+func (d *Postgres) InitID() (int, error) {
+	var maxID int
+	err := d.store.QueryRow("select MAX(user_id) from url").Scan(&maxID)
+	if err != nil {
+		maxID = 1
+	}
+	return maxID, nil
 }

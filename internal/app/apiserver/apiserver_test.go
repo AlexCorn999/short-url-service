@@ -18,6 +18,8 @@ func TestStringAccept(t *testing.T) {
 	server := New(config)
 	server.configureRouter()
 	server.configureStore()
+	authForFlag = true
+	authString = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTU0ODQyNDcsIlVzZXJJRCI6Mn0.t1JXSNXcFN-CXgqHl6qJo1pu4Vexx3fk0R2zQhdHWMI"
 
 	if server.typeStore == "database" {
 		defer server.Database.Close()
@@ -102,8 +104,8 @@ func TestStringBack(t *testing.T) {
 	url2.OriginalURL = "http://Skillbox.ru"
 	id1 := "1"
 	id2 := "2"
-	server.Database.WriteURL(&url1, &id1)
-	server.Database.WriteURL(&url2, &id2)
+	server.Database.WriteURL(&url1, 0, &id1)
+	server.Database.WriteURL(&url2, 0, &id2)
 
 	type want struct {
 		statusCode  int

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/AlexCorn999/short-url-service/internal/app/auth"
 	"github.com/AlexCorn999/short-url-service/internal/app/filestorage"
 	"github.com/AlexCorn999/short-url-service/internal/app/gzip"
 	"github.com/AlexCorn999/short-url-service/internal/app/logger"
@@ -17,6 +18,12 @@ import (
 	"github.com/go-chi/chi"
 
 	log "github.com/sirupsen/logrus"
+)
+
+var (
+	authForFlag = false
+	authString  string
+	tknStr      string
 )
 
 type batchURL struct {
@@ -85,6 +92,7 @@ func (s *APIServer) Start() error {
 
 func (s *APIServer) configureRouter() {
 	s.router = chi.NewRouter()
+	s.router.Use(s.Auth)
 	s.router.Use(logger.WithLogging)
 	s.router.Use(gzip.GzipHandle)
 	s.router.Post("/api/shorten/batch", s.BatchURL)
@@ -92,6 +100,7 @@ func (s *APIServer) configureRouter() {
 	s.router.Post("/", s.StringAccept)
 	s.router.Get("/{id}", s.StringBack)
 	s.router.Get("/ping", s.Ping)
+	s.router.Get("/api/user/urls", s.GetAllURL)
 	s.router.NotFound(badRequest)
 }
 
@@ -165,9 +174,26 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
 
-	url := store.NewURL(link, string(body))
+	// для авторизации
+	if !authForFlag {
+		c, err := r.Cookie("token")
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		tknStr = c.Value
+	} else {
+		tknStr = authString
+	}
 
-	if err = s.Database.WriteURL(url, &idForData); err != nil {
+	creator, err := auth.GetUserID(tknStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	url := store.NewURL(link, string(body), creator)
+	if err = s.Database.WriteURL(url, creator, &idForData); err != nil {
 		// проверка, что ссылка уже есть в базе
 		if errors.Is(err, store.ErrConfilict) {
 
@@ -181,6 +207,22 @@ func (s *APIServer) StringAccept(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(res))
 			return
 		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	// проверка для работы флага b БД
+	if s.typeStore == "database" {
+		if s.config.ShortURLAddr != "" {
+			hostForLink = s.config.ShortURLAddr
+			link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+		} else {
+			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+		}
+		urlResult := store.NewURL(link, string(body), creator)
+		// тут нужно перезаписать значения в базе
+		if err := s.Database.RewriteURL(urlResult); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -243,14 +285,31 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
 	}
 
-	urlNew := store.NewURL(link, url.URL)
-	if err := s.Database.WriteURL(urlNew, &idForData); err != nil {
+	/// для авторизации
+	var tknStr string
+	if !authForFlag {
+		c, err := r.Cookie("token")
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		tknStr = c.Value
+	} else {
+		tknStr = authString
+	}
+
+	creator, err := auth.GetUserID(tknStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	urlNew := store.NewURL(link, url.URL, creator)
+	if err := s.Database.WriteURL(urlNew, creator, &idForData); err != nil {
 		// проверка, что ссылка уже есть в базе
 		if errors.Is(err, store.ErrConfilict) {
 
 			var result shortenURL
-			// добавить отдачу
-			//result.URL = resultt
 			objectJSON, err := json.Marshal(result)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
@@ -263,6 +322,22 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 		} else {
 			fmt.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	// проверка для работы флага b БД
+	if s.typeStore == "database" {
+		if s.config.ShortURLAddr != "" {
+			hostForLink = s.config.ShortURLAddr
+			link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+		} else {
+			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+		}
+		urlResult := store.NewURL(link, url.URL, creator)
+		// тут нужно перезаписать значения в базе
+		if err := s.Database.RewriteURL(urlResult); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -316,18 +391,52 @@ func (s *APIServer) BatchURL(w http.ResponseWriter, r *http.Request) {
 		hostForLink := r.Host
 		var link string
 
-		urlNew := store.NewURL(link, urls[i].OriginalURL)
-		if err := s.Database.WriteURL(urlNew, &idForData); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
 		// проверка для работы флага b
 		if s.config.ShortURLAddr != "" {
 			hostForLink = s.config.ShortURLAddr
 			link = fmt.Sprintf("%s/%s", hostForLink, idForData)
 		} else {
 			link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+		}
+
+		// для авторизации
+		if !authForFlag {
+			c, err := r.Cookie("token")
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			tknStr = c.Value
+		} else {
+			tknStr = authString
+		}
+
+		creator, err := auth.GetUserID(tknStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		urlNew := store.NewURL(link, urls[i].OriginalURL, creator)
+		if err := s.Database.WriteURL(urlNew, creator, &idForData); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// проверка для работы флага b БД
+		if s.typeStore == "database" {
+			if s.config.ShortURLAddr != "" {
+				hostForLink = s.config.ShortURLAddr
+				link = fmt.Sprintf("%s/%s", hostForLink, idForData)
+			} else {
+				link = fmt.Sprintf("http://%s/%s", hostForLink, idForData)
+			}
+			urlResult := store.NewURL(link, urls[i].OriginalURL, creator)
+			// тут нужно перезаписать значения в базе
+			if err := s.Database.RewriteURL(urlResult); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 		}
 
 		urls[i].shortURL = link
@@ -367,4 +476,113 @@ func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+// GetAllURL возвращает пользователю все сокращенные им url.
+func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
+	c, err := r.Cookie("token")
+	if err != nil {
+		s.logger.Info("ошибка тут c, err := r.Cookie()")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	tknStr = c.Value
+
+	creator, err := auth.GetUserID(tknStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	result, err := s.Database.GetAllURL(creator)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	type resultURL struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+
+	resultForJSON := make([]resultURL, len(result))
+
+	if s.typeStore == "database" {
+		for i := 0; i < len(result); i++ {
+			resultForJSON[i].OriginalURL = result[i].ShortURL
+			resultForJSON[i].ShortURL = result[i].OriginalURL
+		}
+	} else {
+		for i := 0; i < len(result); i++ {
+			resultForJSON[i].OriginalURL = result[i].OriginalURL
+			resultForJSON[i].ShortURL = result[i].ShortURL
+		}
+	}
+
+	if len(resultForJSON) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	objectJSON, err := json.Marshal(resultForJSON)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(objectJSON)
+}
+
+func (s *APIServer) Auth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenFlag := false
+		var token string
+
+		if s.typeStore == "database" {
+			// переписываем значение из базы для user_id
+			newIDForDB, err := s.Database.InitID()
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			auth.ID = newIDForDB + 1
+		}
+
+		// проверка на cуществование cookie
+		c, err := r.Cookie("token")
+		if err != nil {
+			if err == http.ErrNoCookie {
+				token, err = auth.BuildJWTString()
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				tokenFlag = true
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+		}
+
+		if !tokenFlag {
+			tknStr = c.Value
+		} else {
+			tknStr = token
+		}
+
+		if tokenFlag {
+			authForFlag = true
+			authString = token
+			http.SetCookie(w, &http.Cookie{
+				Name:  "token",
+				Value: token,
+			})
+
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
