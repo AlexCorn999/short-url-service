@@ -24,7 +24,7 @@ func NewMemoryStorage() *MemoryStorage {
 func (m *MemoryStorage) WriteURL(url *store.URL, id int, ssh *string) error {
 	data, err := json.Marshal(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("error from local storage. can't convert url - %s ", err)
 	}
 
 	m.store[*ssh] = string(data)
@@ -33,35 +33,68 @@ func (m *MemoryStorage) WriteURL(url *store.URL, id int, ssh *string) error {
 
 // ReadURL вычитывает url по ключу.
 func (m *MemoryStorage) ReadURL(url *store.URL, ssh string) error {
-
 	value, ok := m.store[ssh]
 	if !ok {
-		return fmt.Errorf("not found %s", ssh)
+		return fmt.Errorf("error from local storage. url not found %s", ssh)
 	}
 
 	if err := json.Unmarshal([]byte(value), url); err != nil {
-		return err
+		return fmt.Errorf("error from local storage. can't convert url - %s ", err)
 	}
+
+	if url.DeletedFlag {
+		return store.ErrDeleted
+	}
+
 	return nil
 }
 
+// GetAllURL возвращает все сокращенные url пользователя.
 func (m *MemoryStorage) GetAllURL(id int) ([]store.URL, error) {
 	var userURL []store.URL
 
 	for _, value := range m.store {
 		var url store.URL
 		if err := json.Unmarshal([]byte(value), &url); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error from local storage. can't convert url - %s ", err)
 		}
 		if url.Creator == id {
 			userURL = append(userURL, url)
 		}
 	}
-
 	return userURL, nil
 }
 
-// RewriteURL добавляет URL в базу данных.
+// DeleteURL удаляет url у текущего пользователя.
+func (m *MemoryStorage) DeleteURL(tasks []store.Task) error {
+
+	fmt.Println("из функции удаления ", tasks)
+
+	for _, task := range tasks {
+		for key, value := range m.store {
+			var url store.URL
+			if err := json.Unmarshal([]byte(value), &url); err != nil {
+				return fmt.Errorf("error from local storage. can't convert url - %s ", err)
+			}
+
+			if url.ShortURL == task.Link && url.Creator == task.Creator {
+				url.DeletedFlag = true
+
+				data, err := json.Marshal(url)
+				if err != nil {
+					return fmt.Errorf("error from local storage. can't convert url - %s ", err)
+				}
+
+				fmt.Println(url)
+				m.store[key] = string(data)
+			}
+		}
+	}
+
+	return nil
+
+}
+
 func (m *MemoryStorage) RewriteURL(url *store.URL) error {
 	return nil
 }
@@ -70,7 +103,6 @@ func (m *MemoryStorage) Close() error {
 	return nil
 }
 
-// CheckPing проверяет подключение к базе данных.
 func (m *MemoryStorage) CheckPing() error {
 	return nil
 }

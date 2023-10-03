@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/AlexCorn999/short-url-service/internal/app/logger"
 	"github.com/AlexCorn999/short-url-service/internal/app/memorystorage"
 	"github.com/AlexCorn999/short-url-service/internal/app/store"
+	"github.com/AlexCorn999/short-url-service/internal/app/worker"
 	"github.com/go-chi/chi"
 
 	log "github.com/sirupsen/logrus"
@@ -52,6 +54,7 @@ type APIServer struct {
 	store.Database
 	initialized bool
 	typeStore   string
+	worker      *worker.DeleteURLQueue
 	logger      *log.Logger
 	config      *Config
 	router      *chi.Mux
@@ -85,6 +88,11 @@ func (s *APIServer) Start() error {
 		defer s.Database.Close()
 	}
 
+	// для асинхронного удаления.
+	worker := worker.NewDeleteURLQueue(s.Database, s.logger, 5)
+	s.worker = worker
+	s.worker.Start(context.Background())
+
 	s.logger.Info("starting api server")
 
 	return http.ListenAndServe(s.config.bindAddr, s.router)
@@ -101,6 +109,7 @@ func (s *APIServer) configureRouter() {
 	s.router.Get("/{id}", s.StringBack)
 	s.router.Get("/ping", s.Ping)
 	s.router.Get("/api/user/urls", s.GetAllURL)
+	s.router.Delete("/api/user/urls", s.DeleteURL)
 	s.router.NotFound(badRequest)
 }
 
@@ -123,6 +132,13 @@ func (s *APIServer) configureStore() error {
 		}
 		s.Database = db
 		s.typeStore = "database"
+
+		// переписываем значение из базы для user_id
+		newIDForDB, err := s.Database.InitID()
+		if err != nil {
+			return err
+		}
+		auth.ChangeID(newIDForDB)
 
 	} else if len(strings.TrimSpace(s.config.FilePath)) != 0 {
 		db, err := filestorage.NewBoltDB(s.config.FilePath)
@@ -240,6 +256,10 @@ func (s *APIServer) StringBack(w http.ResponseWriter, r *http.Request) {
 	var url store.URL
 
 	if err := s.Database.ReadURL(&url, id[1:]); err != nil {
+		if errors.Is(err, store.ErrDeleted) {
+			w.WriteHeader(http.StatusGone)
+			return
+		}
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -290,7 +310,7 @@ func (s *APIServer) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	if !authForFlag {
 		c, err := r.Cookie("token")
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		tknStr = c.Value
@@ -482,7 +502,6 @@ func (s *APIServer) Ping(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("token")
 	if err != nil {
-		s.logger.Info("ошибка тут c, err := r.Cookie()")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -496,7 +515,7 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 
 	result, err := s.Database.GetAllURL(creator)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -535,25 +554,77 @@ func (s *APIServer) GetAllURL(w http.ResponseWriter, r *http.Request) {
 	w.Write(objectJSON)
 }
 
+// DeleteURL удаляет указанные url у текущего пользователя.
+func (s *APIServer) DeleteURL(w http.ResponseWriter, r *http.Request) {
+
+	c, err := r.Cookie("token")
+	if err != nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	tknStr = c.Value
+
+	creator, err := auth.GetUserID(tknStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var urls []string
+
+	if err := json.Unmarshal(body, &urls); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// проверка на пустую ссылку
+	for _, url := range urls {
+		if len(strings.TrimSpace(url)) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	hostForLink := r.Host
+	var lin string
+
+	// удаление url
+	for _, url := range urls {
+
+		// проверка для работы флага b
+		if s.config.ShortURLAddr != "" {
+			hostForLink = s.config.ShortURLAddr
+			lin = fmt.Sprintf("%s/%s", hostForLink, url)
+		} else {
+			lin = fmt.Sprintf("http://%s/%s", hostForLink, url)
+		}
+
+		// асинхронное удаление ссылок
+		var t store.Task
+		t.Link = lin
+		t.Creator = creator
+		s.worker.Push(&t)
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// Auth middleware для авторизации пользователя.
 func (s *APIServer) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenFlag := false
 		var token string
 
-		if s.typeStore == "database" {
-			// переписываем значение из базы для user_id
-			newIDForDB, err := s.Database.InitID()
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			auth.ID = newIDForDB + 1
-		}
-
 		// проверка на cуществование cookie
 		c, err := r.Cookie("token")
 		if err != nil {
-			if err == http.ErrNoCookie {
+			if errors.Is(err, http.ErrNoCookie) {
 				token, err = auth.BuildJWTString()
 				if err != nil {
 					w.WriteHeader(http.StatusBadRequest)
@@ -577,8 +648,9 @@ func (s *APIServer) Auth(next http.Handler) http.Handler {
 			authForFlag = true
 			authString = token
 			http.SetCookie(w, &http.Cookie{
-				Name:  "token",
-				Value: token,
+				Name:     "token",
+				Value:    token,
+				HttpOnly: true,
 			})
 
 		}
